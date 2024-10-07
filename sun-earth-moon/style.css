@@ -1,1 +1,19 @@
-
+<style>
+        canvas {
+            border: 8px solid black;
+        }
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            background: #fff;
+        }
+        #controls {
+            position: absolute;
+            top: 20px;
+            display: flex;
+            gap: 10px;
+        }
+    </style>
