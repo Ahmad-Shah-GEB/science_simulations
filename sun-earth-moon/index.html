@@ -42,7 +42,7 @@
         const resetButton = document.getElementById("resetButton");
 
         const sun = { x: 500, y: 400, radius: 50 };
-        let earth = { angle: 0, semiMajorAxis: 300, eccentricity: 0.0167, size: 20, isDragging: false };
+        let earth = { angle: 0, semiMajorAxis: 250, eccentricity: 0.0167, size: 20, isDragging: false };
         const moon = { angle: 0, radius: 50, size: 10, rotations: 0 };
         let isPaused = false;
         let speedMultiplier = 0.7;
@@ -75,8 +75,8 @@
         }
 
         function drawEarth() {
-            const monthIndex = Math.floor((earth.angle / (2 * Math.PI)) * 12) % 12;
-            const distance = earth.semiMajorAxis * monthlyDistances[monthIndex];
+            const monthIndex = Math.floor((-earth.angle / (2 * Math.PI)) * 12) % 12;
+            const distance = (earth.semiMajorAxis / 200) * earth.semiMajorAxis * monthlyDistances[monthIndex];
             const semiMinorAxis = distance * Math.sqrt(1 - earth.eccentricity ** 2);
             const earthX = sun.x + distance * Math.cos(earth.angle);
             const earthY = sun.y + semiMinorAxis * Math.sin(earth.angle);
@@ -90,20 +90,21 @@
             // Label the month and distance below Earth
             ctx.font = "14px Arial";
             ctx.fillStyle = "black";
-            const distanceInMillionKm = (distance / 300) * 149.6; // Scale distance to million km
+            const distanceInMillionKm = monthlyDistances[monthIndex] * 149.6; // Calculate actual distance in million km based on AU
+ // Scale distance to million km
             ctx.fillText(`${getMonthName(monthIndex)}: ${distanceInMillionKm.toFixed(1)} million km`, earthX - 30, earthY + 40);
         }
 
         function drawMoon() {
             const moonRotationsPerYear = 13; // Moon completes approximately 13 rotations around Earth per year
             if (!isPaused && !earth.isDragging) {
-                moon.angle += 0.005 * moonRotationsPerYear * speedMultiplier; // Update moon angle relative to Earth's movement
-                if (moon.angle >= 2 * Math.PI) {
-                    moon.angle -= 2 * Math.PI;
+                moon.angle -= 0.005 * moonRotationsPerYear * speedMultiplier; // Update moon angle relative to Earth's movement
+                if (moon.angle <= -2 * Math.PI) {
+                    moon.angle += 2 * Math.PI;
                     moon.rotations += 1;
                 }
-                if (earth.angle >= 2 * Math.PI) {
-                    moon.rotations = 0; // Reset moon rotations at the beginning of each year
+                if (earth.angle <= -2 * Math.PI) {
+                    moon.rotations = 0; // Reset moon rotations to 0 at the beginning of each year
                 }
             }
             const moonX = earth.x + moon.radius * Math.cos(moon.angle);
@@ -128,25 +129,25 @@
         function drawLegend() {
             // Draw Earth legend
             ctx.beginPath();
-            ctx.arc(900, 700, 10, 0, Math.PI * 2);
+            ctx.arc(850, 600, 10, 0, Math.PI * 2);
             ctx.fillStyle = "blue";
             ctx.fill();
             ctx.font = "14px Arial";
             ctx.fillStyle = "black";
-            ctx.fillText("Earth", 933, 705);
+            ctx.fillText("Earth", 883, 605);
 
             // Draw Moon legend
             ctx.beginPath();
-            ctx.arc(900, 730, 10, 0, Math.PI * 2);
+            ctx.arc(850, 630, 10, 0, Math.PI * 2);
             ctx.fillStyle = "gray";
             ctx.fill();
-            ctx.fillText("Moon", 933, 735);
+            ctx.fillText("Moon", 883, 635);
         }
 
         function drawSpeed() {
             ctx.font = "15px Arial";
             ctx.fillStyle = "black";
-            ctx.fillText(`Simulation Speed: ${(speedMultiplier / 0.7).toFixed(1)}`, 100, canvas.height - 75);
+            ctx.fillText(`Simulation Speed: ${(speedMultiplier / 0.7).toFixed(1)}`, 500, canvas.height - 765);
         }
 
         function draw() {
@@ -174,8 +175,6 @@
             return months[index];
         }
 
-        
-
         canvas.addEventListener("mousedown", (e) => {
             const pos = getMousePos(canvas, e);
             const distance = Math.sqrt((pos.x - earth.x) ** 2 + (pos.y - earth.y) ** 2);
@@ -188,11 +187,11 @@
             if (earth.isDragging) {
                 const pos = getMousePos(canvas, e);
                 earth.angle = Math.atan2(pos.y - sun.y, pos.x - sun.x);
-                if (earth.angle < 0) {
-                    earth.angle += 2 * Math.PI;
+                if (earth.angle > 0) {
+                    earth.angle -= 2 * Math.PI;
                 }
                 moon.angle = earth.angle * 13; // Update moon angle to match Earth's movement during dragging
-                moon.rotations = Math.floor(moon.angle / (2 * Math.PI)); // Update moon rotations during dragging
+                moon.rotations = (-1)*(Math.floor((moon.angle + 2 * Math.PI) / (2 * Math.PI))); // Update moon rotations during dragging
                 draw();
             }
         });
@@ -224,12 +223,11 @@
             window.location.reload();
         });
 
-
         function animate() {
             if (!isPaused && !earth.isDragging) {
-                earth.angle += 0.005 * speedMultiplier;
-                if (earth.angle >= 2 * Math.PI) {
-                    earth.angle -= 2 * Math.PI;
+                earth.angle -= 0.005 * speedMultiplier;
+                if (earth.angle <= -2 * Math.PI) {
+                    earth.angle += 2 * Math.PI;
                     moon.rotations = -1; // Reset moon rotations at the beginning of each year
                 }
             }
