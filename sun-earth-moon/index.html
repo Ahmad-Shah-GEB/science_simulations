@@ -76,7 +76,7 @@
 
         function drawEarth() {
             const monthIndex = Math.floor((-earth.angle / (2 * Math.PI)) * 12) % 12;
-            const distance = (earth.semiMajorAxis / 200) * earth.semiMajorAxis * monthlyDistances[monthIndex];
+            const distance = (earth.semiMajorAxis / 247) * earth.semiMajorAxis * monthlyDistances[monthIndex];
             const semiMinorAxis = distance * Math.sqrt(1 - earth.eccentricity ** 2);
             const earthX = sun.x + distance * Math.cos(earth.angle);
             const earthY = sun.y + semiMinorAxis * Math.sin(earth.angle);
@@ -147,7 +147,7 @@
         function drawSpeed() {
             ctx.font = "15px Arial";
             ctx.fillStyle = "black";
-            ctx.fillText(`Simulation Speed: ${(speedMultiplier / 0.7).toFixed(1)}`, 500, canvas.height - 765);
+            ctx.fillText(`Simulation Speed: ${(speedMultiplier / 0.7).toFixed(1)}`, 870, 570);
         }
 
         function draw() {
