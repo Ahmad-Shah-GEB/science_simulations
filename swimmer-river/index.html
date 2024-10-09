@@ -46,9 +46,10 @@
     <canvas id="riverCanvas" width="1000" height="250"></canvas>
     <div id="info">
         <p>Swimmer's Velocity Across River (নদীর প্রস্থ বরাবর বেগ): <span id="swimmerAcrossVelocityDisplay">0.0</span> m/s</p>
-        <p>Swimmer's Velocity Along Flow (নদীর দৈর্ঘ্য বরাবর বেগ): <span id="swimmerAlongVelocityDisplay">0.0</span> m/s</p>
+        <p>Swimmer's Velocity Along Flow (নদীর দৈংঘ্য বরাবর বেগ): <span id="swimmerAlongVelocityDisplay">0.0</span> m/s</p>
         <p>Swimmer's Angle in River (সাঁতারুর প্রকৃত কোণ): <span id="swimmerAngleDisplay">90</span>°</p>
         <p>Swimmer's Velocity in River (নদীতে সাঁতারুর প্রকৃত বেগ): <span id="swimmerVelocityDisplay">0.0</span> m/s</p>
+        <p>Swimmer's Drift (সাঁতারুর ড্রিফ্ট): <span id="swimmerDriftDisplay">0.0</span> m</p>
     </div>
     <script>
         const canvas = document.getElementById('riverCanvas');
@@ -59,11 +60,13 @@
         const swimmerVelocityDisplay = document.getElementById('swimmerVelocityDisplay');
         const swimmerAcrossVelocityDisplay = document.getElementById('swimmerAcrossVelocityDisplay');
         const swimmerAlongVelocityDisplay = document.getElementById('swimmerAlongVelocityDisplay');
+        const swimmerDriftDisplay = document.getElementById('swimmerDriftDisplay');
 
         let flowVelocity, swimmerVelocity, swimAngle;
         let swimmer = { x: 0, y: 0, vx: 0, vy: 0 };
         let isRunning = false;
         let path = [];
+        let initialX;
 
         function startSimulation() {
             // Get input values
@@ -74,6 +77,7 @@
             // Reset swimmer position to middle bottom of the river
             swimmer.x = canvas.width / 2;
             swimmer.y = canvas.height - 10;
+            initialX = swimmer.x;
             path = [];
 
             // Calculate swimmer's velocity components
@@ -97,6 +101,7 @@
             swimmer.x = canvas.width / 2;
             swimmer.y = canvas.height - 10;
             path = [];
+            swimmerDriftDisplay.textContent = "0.0";
             drawRiver();
             drawSwimmer();
         }
@@ -159,6 +164,9 @@
                 // Check if swimmer reached the other side
                 if (swimmer.x >= canvas.width || swimmer.x <= 0 || swimmer.y <= 0 || swimmer.y >= canvas.height) {
                     isRunning = false;
+                    const drift = (swimmer.x - initialX).toFixed(2);
+swimmerDriftDisplay.textContent = drift;
+                    swimmerDriftDisplay.textContent = drift;
                 } else {
                     requestAnimationFrame(animate);
                 }
