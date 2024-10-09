@@ -18,8 +18,14 @@
             background: #f0f0f0;
         }
         #controls {
-            margin-bottom: 10px;
             display: flex;
+            flex-direction: column;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+        #buttons {
+            display: flex;
+            justify-content: space-between;
             gap: 10px;
         }
         #info {
@@ -29,18 +35,20 @@
 </head>
 <body>
     <div id="controls">
-        <button id="resetButton">Reset</button>
-        <label>River Flow Velocity: <input type="number" id="flowVelocity" value="1.0" step="0.1"> m/s</label>
-        <label>Swimmer Velocity: <input type="number" id="swimmerVelocity" value="2.0" step="0.1"> m/s</label>
-        <label>Swimmer Angle: <input type="number" id="swimAngle" value="90" step="1"> °</label>
-        <button id="startButton">Start Simulation</button>
+        <label>River's Velocity (নদীর বেগ): <input type="number" id="flowVelocity" value="1.0" step="0.1"> m/s</label>
+        <label>Swimmer's Velocity (সাঁতারুর বেগ): <input type="number" id="swimmerVelocity" value="2.0" step="0.1"> m/s</label>
+        <label>Swimmer Angle (সাঁতারুর আদিকোণ): <input type="number" id="swimAngle" value="90" step="1"> °</label>
+        <div id="buttons">
+            <button id="startButton">Start Simulation</button>
+            <button id="resetButton">Reset</button>
+        </div>
     </div>
     <canvas id="riverCanvas" width="1000" height="250"></canvas>
     <div id="info">
-        <p>Swimmer Velocity Across River: <span id="swimmerAcrossVelocityDisplay">0.0</span> m/s</p>
-        <p>Swimmer Velocity Along Flow: <span id="swimmerAlongVelocityDisplay">0.0</span> m/s</p>
-        <p>Swimmer Angle: <span id="swimmerAngleDisplay">90</span>°</p>
-        <p>Swimmer Velocity in River: <span id="swimmerVelocityDisplay">0.0</span> m/s</p>
+        <p>Swimmer's Velocity Across River (নদীর প্রস্থ বরাবর বেগ): <span id="swimmerAcrossVelocityDisplay">0.0</span> m/s</p>
+        <p>Swimmer's Velocity Along Flow (নদীর দৈর্ঘ্য বরাবর বেগ): <span id="swimmerAlongVelocityDisplay">0.0</span> m/s</p>
+        <p>Swimmer's Angle in River (সাঁতারুর প্রকৃত কোণ): <span id="swimmerAngleDisplay">90</span>°</p>
+        <p>Swimmer's Velocity in River (নদীতে সাঁতারুর প্রকৃত বেগ): <span id="swimmerVelocityDisplay">0.0</span> m/s</p>
     </div>
     <script>
         const canvas = document.getElementById('riverCanvas');
@@ -143,8 +151,8 @@
                 swimmerVelocityDisplay.textContent = actualVelocity.toFixed(2);
 
                 // Update velocity components based on resultant angle
-                const swimmerVelocityAcross = swimmerVelocity * Math.sin(resultantAngle);
-                const swimmerVelocityAlong = flowVelocity * Math.cos(resultantAngle);
+                const swimmerVelocityAcross = actualVelocity * Math.sin(resultantAngle);
+                const swimmerVelocityAlong = actualVelocity * Math.cos(resultantAngle);
                 swimmerAcrossVelocityDisplay.textContent = swimmerVelocityAcross.toFixed(2);
                 swimmerAlongVelocityDisplay.textContent = swimmerVelocityAlong.toFixed(2);
 
