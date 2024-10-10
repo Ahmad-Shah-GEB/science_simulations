@@ -166,13 +166,8 @@
                 swimmerAlongVelocityDisplay.textContent = swimmerVelocityAlong.toFixed(2);
 
                 // Check if swimmer reached the other side
-                if (swimmer.y <= canvas.height - riverWidth) {
-                    swimmer.y = canvas.height - riverWidth; // Stop exactly at the other side
-                    isRunning = false;
-                    const drift = (riverWidth / Math.tan(Math.abs(resultantAngle))).toFixed(2);
-                    swimmerDriftDisplay.textContent = drift;
-                } else if (swimmer.y <= 0) { // Ensure swimmer doesn't go beyond the river
-                    swimmer.y = 0;
+                if (swimmer.y <= 0) {
+                    swimmer.y = 0; // Stop exactly at the other side
                     isRunning = false;
                     const drift = (riverWidth / Math.tan(Math.abs(resultantAngle))).toFixed(2);
                     swimmerDriftDisplay.textContent = drift;
