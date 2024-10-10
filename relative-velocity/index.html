@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Two Light Blue Boxes with Red Ball</title>
+    <style>
+        #container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 400px;
+        }
+        .blue-box {
+            width: 600px;
+            height: 400px;
+            background-color: lightblue;
+            position: relative;
+            margin: 0 10px;
+        }
+        .red-ball {
+            width: 20px;
+            height: 20px;
+            background-color: red;
+            border-radius: 50%;
+            position: absolute;
+            bottom: 0;
+            left: 50%;
+            transform: translateX(-50%);
+        }
+        .black-boat {
+            width: 50px;
+            height: 20px;
+            background-color: black;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+        }
+        #controls {
+            text-align: center;
+            margin-bottom: 10px;
+        }
+    </style>
+</head>
+<body style="padding-top: 50px;">
+    <div id="controls" style="text-align: center; margin-bottom: 10px;">
+        <button onclick="resetSimulation()">Reset</button>
+        <label for="angle" style="margin-right: 10px;">Angle (degrees):</label>
+        <input type="number" id="angle" value="60" step="1" style="margin-right: 10px;">
+        <label for="velocity" style="margin-right: 10px;">Velocity (m/s):</label>
+        <input type="number" id="velocity" value="2" step="0.1" style="margin-right: 10px;">
+        <label for="riverFlow" style="margin-right: 10px;">River Flow (m/s):</label>
+        <input type="number" id="riverFlow" value="1" step="0.1" style="margin-right: 10px;">
+        <button onclick="runSimulation()">Run</button>
+        <button onclick="pauseSimulation()">Pause</button>
+        <button onclick="resumeSimulation()">Resume</button>
+    </div>
+    <div id="container">
+        <div class="blue-box">
+            <canvas id="leftCanvas" width="600" height="400"></canvas>
+            <div class="black-boat" id="blackBoat"></div>
+            <div class="red-ball" id="redBallLeft"></div>
+        </div>
+        <div class="blue-box">
+            <canvas id="rightCanvas" width="600" height="400"></canvas>
+            <div class="red-ball" id="redBallRight"></div>
+        </div>
+    </div>
+    <script>
+        let animationFrame;
+        let isPaused = false;
+        const timeInterval = 0.01; // Time interval in seconds for each frame (approximately 60 frames per second)
+
+        let posXLeft = 300; // Start at the center bottom of the left box
+        let posYLeft = 380;
+        let posXRight = 300; // Start at the center bottom of the right box
+        let posYRight = 380;
+        let boatPosX = 300; // Start at the center of the left box
+
+        function runSimulation() {
+            isPaused = false;
+            cancelAnimationFrame(animationFrame);
+            animate();
+        }
+
+        function pauseSimulation() {
+            isPaused = true;
+        }
+
+        function resumeSimulation() {
+            if (isPaused) {
+                isPaused = false;
+                animate();
+            }
+        }
+
+        function animate() {
+            if (isPaused) {
+                return;
+            }
+
+            const angle = parseFloat(document.getElementById("angle").value) * Math.PI / 180; // Convert to radians
+            const velocity = parseFloat(document.getElementById("velocity").value); // Velocity in m/s
+            const riverFlow = parseFloat(document.getElementById("riverFlow").value); // River flow in m/s
+            const redBallLeft = document.getElementById("redBallLeft");
+            const redBallRight = document.getElementById("redBallRight");
+            const blackBoat = document.getElementById("blackBoat");
+            const leftCanvas = document.getElementById("leftCanvas").getContext("2d");
+            const rightCanvas = document.getElementById("rightCanvas").getContext("2d");
+
+            // leftCanvas.clearRect(0, 0, 600, 400);
+            // rightCanvas.clearRect(0, 0, 600, 400);
+
+            // Update swimmer's position in still water (left box)
+            posXLeft += velocity * Math.cos(angle) * timeInterval * 50; // Scale for visualization
+            posYLeft -= velocity * Math.sin(angle) * timeInterval * 50; // Scale for visualization
+
+            // Stop the ball when it reaches the boundaries of the left box
+            if (posXLeft < 0) posXLeft = 0;
+            if (posXLeft > 580) posXLeft = 580; // Box width - Ball width
+            if (posYLeft < 0) {
+                posYLeft = 0;
+                isPaused = true;
+            }
+            if (posYLeft > 380) posYLeft = 380; // Box height - Ball height
+
+            redBallLeft.style.left = posXLeft + 'px';
+            redBallLeft.style.top = posYLeft + 'px';
+
+            // Draw path on left canvas
+            leftCanvas.beginPath();
+            leftCanvas.moveTo(posXLeft, posYLeft);
+            leftCanvas.arc(posXLeft, posYLeft, 1, 0, 2 * Math.PI);
+            leftCanvas.fillStyle = 'red';
+            leftCanvas.fill();
+            leftCanvas.closePath();
+
+            // Calculate relative velocity for right box (observer on boat)
+            const relativeVelocityX = velocity * Math.cos(angle) - riverFlow;
+            const relativeVelocityY = velocity * Math.sin(angle);
+            const relativeSpeed = Math.sqrt(relativeVelocityX ** 2 + relativeVelocityY ** 2);
+            const relativeAngle = Math.atan2(relativeVelocityY, relativeVelocityX); // In radians
+
+            // Update swimmer's position relative to the boat (right box)
+            posXRight += relativeSpeed * Math.cos(relativeAngle) * timeInterval * 50; // Scale for visualization
+            posYRight -= relativeSpeed * Math.sin(relativeAngle) * timeInterval * 50; // Scale for visualization
+
+            // Stop the ball when it reaches the boundaries of the right box
+            if (posXRight < 0) posXRight = 0;
+            if (posXRight > 580) posXRight = 580; // Box width - Ball width
+            if (posYRight < 0) posYRight = 0;
+            if (posYRight > 380) posYRight = 380; // Box height - Ball height
+
+            redBallRight.style.left = posXRight + 'px';
+            redBallRight.style.top = posYRight + 'px';
+
+            // Draw path on right canvas
+            rightCanvas.beginPath();
+            rightCanvas.moveTo(posXRight, posYRight);
+            rightCanvas.arc(posXRight, posYRight, 1, 0, 2 * Math.PI);
+            rightCanvas.fillStyle = 'red';
+            rightCanvas.fill();
+            rightCanvas.closePath();
+
+            // Update boat position to move right
+            boatPosX += riverFlow * timeInterval * 50; // Scale for visualization
+            if (boatPosX > 550) boatPosX = 550; // Stop the boat at the right boundary
+
+            blackBoat.style.left = boatPosX + 'px';
+
+            animationFrame = requestAnimationFrame(animate);
+        }
+    function resetSimulation() {
+            cancelAnimationFrame(animationFrame);
+            isPaused = false;
+            posXLeft = 300;
+            posYLeft = 380;
+            posXRight = 300;
+            posYRight = 380;
+            boatPosX = 300;
+            const redBallLeft = document.getElementById("redBallLeft");
+            const redBallRight = document.getElementById("redBallRight");
+            const blackBoat = document.getElementById("blackBoat");
+            const leftCanvas = document.getElementById("leftCanvas").getContext("2d");
+            const rightCanvas = document.getElementById("rightCanvas").getContext("2d");
+            leftCanvas.clearRect(0, 0, 600, 400);
+            rightCanvas.clearRect(0, 0, 600, 400);
+            redBallLeft.style.left = posXLeft + 'px';
+            redBallLeft.style.top = posYLeft + 'px';
+            redBallRight.style.left = posXRight + 'px';
+            redBallRight.style.top = posYRight + 'px';
+            blackBoat.style.left = boatPosX + 'px';
+        }
+    </script>
+</body>
+</html>
