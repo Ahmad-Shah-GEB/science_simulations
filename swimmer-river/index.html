@@ -35,6 +35,7 @@
 </head>
 <body>
     <div id="controls">
+        <label>River's Width (নদীর প্রস্থ): <input type="number" id="riverWidth" value="250" step="10"> m</label>
         <label>River's Velocity (নদীর বেগ): <input type="number" id="flowVelocity" value="1.0" step="0.1"> m/s</label>
         <label>Swimmer's Velocity (সাঁতারুর বেগ): <input type="number" id="swimmerVelocity" value="2.0" step="0.1"> m/s</label>
         <label>Swimmer Angle (সাঁতারুর আদিকোণ): <input type="number" id="swimAngle" value="90" step="1"> °</label>
@@ -62,7 +63,7 @@
         const swimmerAlongVelocityDisplay = document.getElementById('swimmerAlongVelocityDisplay');
         const swimmerDriftDisplay = document.getElementById('swimmerDriftDisplay');
 
-        let flowVelocity, swimmerVelocity, swimAngle;
+        let flowVelocity, swimmerVelocity, swimAngle, riverWidth;
         let swimmer = { x: 0, y: 0, vx: 0, vy: 0 };
         let isRunning = false;
         let path = [];
@@ -73,22 +74,25 @@
             flowVelocity = parseFloat(document.getElementById('flowVelocity').value);
             swimmerVelocity = parseFloat(document.getElementById('swimmerVelocity').value);
             swimAngle = parseFloat(document.getElementById('swimAngle').value) * (Math.PI / 180); // Convert to radians
+            riverWidth = parseFloat(document.getElementById('riverWidth').value);
 
             // Reset swimmer position to middle bottom of the river
             swimmer.x = canvas.width / 2;
-            swimmer.y = canvas.height - 10;
+            swimmer.y = canvas.height;
             initialX = swimmer.x;
             path = [];
 
             // Calculate swimmer's velocity components
-            swimmer.vx = swimmerVelocity * Math.cos(swimAngle) + flowVelocity;
+            swimmer.vx = swimmerVelocity * Math.cos(swimAngle);
+            swimmer.vx += flowVelocity; // Keep river flow always adding in the correct direction.
             swimmer.vy = -swimmerVelocity * Math.sin(swimAngle);
 
             swimmerAngleDisplay.textContent = (swimAngle * (180 / Math.PI)).toFixed(1);
             const actualVelocity = Math.sqrt(swimmer.vx ** 2 + swimmer.vy ** 2);
 
-            const swimmerVelocityAcross = actualVelocity * Math.sin(swimAngle);
-            const swimmerVelocityAlong = actualVelocity * Math.cos(swimAngle);
+            const swimmerVelocityAcross = swimmer.vy;
+            const swimmerVelocityAlong = swimmer.vx - flowVelocity; // Adjust to reflect the component along the flow direction.
+
             swimmerAcrossVelocityDisplay.textContent = swimmerVelocityAcross.toFixed(2);
             swimmerAlongVelocityDisplay.textContent = swimmerVelocityAlong.toFixed(2);
 
@@ -99,7 +103,7 @@
         function resetSimulation() {
             isRunning = false;
             swimmer.x = canvas.width / 2;
-            swimmer.y = canvas.height - 10;
+            swimmer.y = canvas.height;
             path = [];
             swimmerDriftDisplay.textContent = "0.0";
             drawRiver();
@@ -162,10 +166,15 @@
                 swimmerAlongVelocityDisplay.textContent = swimmerVelocityAlong.toFixed(2);
 
                 // Check if swimmer reached the other side
-                if (swimmer.x >= canvas.width || swimmer.x <= 0 || swimmer.y <= 0 || swimmer.y >= canvas.height) {
+                if (swimmer.y <= canvas.height - riverWidth) {
+                    swimmer.y = canvas.height - riverWidth; // Stop exactly at the other side
                     isRunning = false;
-                    const drift = (swimmer.x - initialX).toFixed(2);
-swimmerDriftDisplay.textContent = drift;
+                    const drift = (riverWidth / Math.tan(Math.abs(resultantAngle))).toFixed(2);
+                    swimmerDriftDisplay.textContent = drift;
+                } else if (swimmer.y <= 0) { // Ensure swimmer doesn't go beyond the river
+                    swimmer.y = 0;
+                    isRunning = false;
+                    const drift = (riverWidth / Math.tan(Math.abs(resultantAngle))).toFixed(2);
                     swimmerDriftDisplay.textContent = drift;
                 } else {
                     requestAnimationFrame(animate);
