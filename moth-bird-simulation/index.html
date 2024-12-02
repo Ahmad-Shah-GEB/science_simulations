@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Moth Evolution Simulator</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+        }
+        canvas {
+            display: block;
+        }
+        #controls {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            z-index: 10;
+        }
+        #counters {
+            position: absolute;
+            bottom: 10px;
+            left: 10px;
+            z-index: 10;
+            display: flex;
+            gap: 10px;
+        }
+        .counter-box {
+            background-color: rgba(0, 0, 0, 0.7);
+            padding: 5px 10px;
+            border-radius: 5px;
+            color: white;
+        }
+        #reset {
+            position: absolute;
+            bottom: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 10;
+        }
+    </style>
+</head>
+<body>
+    <div id="controls">
+        <label for="background">Background:</label>
+        <input type="range" id="background" min="0" max="2" value="1">
+    </div>
+    <div id="counters">
+        <div class="counter-box" id="whiteMoths">White Moths: 50</div>
+        <div class="counter-box" id="blackMoths">Black Moths: 50</div>
+    </div>
+    <button id="reset">Reset</button>
+    <canvas id="canvas"></canvas>
+    <script>
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+
+        const moths = [];
+        const numMoths = 100;
+        const bird = { x: canvas.width / 2, y: canvas.height / 2, size: 20 };
+        let background = 1;
+        let mouseClicked = false;
+
+        const backgroundColors = ['white', 'grey', 'black'];
+
+        document.getElementById('background').addEventListener('input', (e) => {
+            background = e.target.value;
+        });
+
+        document.getElementById('reset').addEventListener('click', () => {
+            moths.length = 0;
+            init();
+        });
+
+        canvas.addEventListener('mousedown', () => {
+            mouseClicked = true;
+        });
+
+        canvas.addEventListener('mouseup', () => {
+            mouseClicked = false;
+        });
+
+        class Moth {
+            constructor(x, y, color) {
+                this.x = x;
+                this.y = y;
+                this.color = color;
+                this.size = 10;
+            }
+
+            draw() {
+                ctx.fillStyle = this.color;
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+                ctx.fill();
+            }
+
+            update() {
+                if (Math.random() < 0.01) {
+                    this.x += Math.random() * 10 - 5;
+                    this.y += Math.random() * 10 - 5;
+                }
+            }
+        }
+
+        function init() {
+            for (let i = 0; i < numMoths / 2; i++) {
+                moths.push(new Moth(Math.random() * canvas.width, Math.random() * canvas.height, 'white'));
+                moths.push(new Moth(Math.random() * canvas.width, Math.random() * canvas.height, 'black'));
+            }
+            updateCounters();
+        }
+
+        function draw() {
+            ctx.fillStyle = backgroundColors[background];
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            moths.forEach(moth => moth.draw());
+            ctx.fillStyle = 'red';
+            ctx.beginPath();
+            ctx.arc(bird.x, bird.y, bird.size, 0, Math.PI * 2);
+            ctx.fill();
+        }
+
+        function update() {
+            moths.forEach(moth => moth.update());
+            if (mouseClicked) {
+                moths.forEach((moth, index) => {
+                    if (Math.hypot(bird.x - moth.x, bird.y - moth.y) < bird.size + moth.size) {
+                        moths.splice(index, 1);
+                    }
+                });
+            }
+            updateCounters();
+        }
+
+        function updateCounters() {
+            document.getElementById('whiteMoths').textContent = `White Moths: ${moths.filter(moth => moth.color === 'white').length}`;
+            document.getElementById('blackMoths').textContent = `Black Moths: ${moths.filter(moth => moth.color === 'black').length}`;
+        }
+
+        function animate() {
+            draw();
+            update();
+            requestAnimationFrame(animate);
+        }
+
+        window.addEventListener('mousemove', (e) => {
+            bird.x = e.clientX;
+            bird.y = e.clientY;
+        });
+
+        init();
+        animate();
+    </script>
+</body>
+</html>
