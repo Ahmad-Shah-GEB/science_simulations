@@ -277,10 +277,15 @@
             const secondRefractionAngleRad = Math.asin(Math.sin(reflectedAngleRad) * refractiveIndex);
             const secondRefractedDistance = 250;
 
+            const secondRefractionAngleRelativeToGround = Math.atan2(
+                dropletCenter.y - reflectedRayEnd.y,
+                dropletCenter.x - reflectedRayEnd.x
+            ) - secondRefractionAngleRad;
+
             // Calculate the endpoint of the second refracted ray
             const secondRefractedRayEnd = {
-                x: reflectedRayEnd.x - (secondRefractedDistance * Math.cos(reflectedAngleRad)),
-                y: reflectedRayEnd.y - (secondRefractedDistance * Math.sin(reflectedAngleRad))
+                x: reflectedRayEnd.x - (secondRefractedDistance * Math.cos(secondRefractionAngleRelativeToGround)),
+                y: reflectedRayEnd.y - (secondRefractedDistance * Math.sin(secondRefractionAngleRelativeToGround))
             };
 
             // Draw the second refracted ray
