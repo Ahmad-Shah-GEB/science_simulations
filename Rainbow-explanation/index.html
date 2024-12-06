@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Water Droplet Refraction Simulation</title>
+    <style>
+        body {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+            position: relative;
+        }
+        canvas {
+            border: 1px solid black;
+        }
+        #angleInfo {
+            position: absolute;
+            bottom: 10px;
+            right: 10px;
+            background: rgba(255, 255, 255, 0.8);
+            padding: 10px;
+            border-radius: 5px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.2);
+        }
+    </style>
+</head>
+<body>
+    <h1>Water Droplet Refraction Simulation</h1>
+    <canvas id="dropletCanvas" width="600" height="600"></canvas>
+    <br>
+    <label for="angleSlider">Adjust Incoming Ray Angle:</label>
+    <input type="range" id="angleSlider" min="-90" max="90" value="0">
+    <br>
+    <label for="heightSlider">Adjust Incoming Ray Height:</label>
+    <input type="range" id="heightSlider" min="-120" max="120" value="0">
+    <label for="axisToggle">Show/Hide Axis:</label>
+    <button id="resetButton">Reset</button>
+    <input type="checkbox" id="axisToggle" checked>
+    <div id="angleInfo">
+        <p>Incoming Angle (Relative to Ground): <span id="incomingAngle">0</span>&deg;</p>
+        <p>Incoming Height: <span id="incomingHeight">0</span></p>
+        <p>Incoming Angle (Contact Point): <span id="incomingContactAngle">0</span>&deg;</p>
+        <p>First Refraction Angle: <span id="firstRefractionAngle">0</span>&deg;</p>
+        <p>Second Incoming Angle: <span id="secondIncomingAngle">0</span>&deg;</p>
+        <p>Second Refraction Angle: <span id="secondRefractionAngle">0</span>&deg;</p>
+        <p>Reflaction Angle: <span id="ReflactionAngle">0</span>&deg;</p>
+        <p>Ray Start X: <span id="rayStartX">0</span></p>
+        <p>Ray Start Y: <span id="rayStartY">0</span></p>
+        <p>Ray End X: <span id="rayEndX">0</span></p>
+        <p>Ray End Y: <span id="rayEndY">0</span></p>
+        <p>refractedRayEnd X: <span id="refractedRayEndX">0</span></p>
+        <p>refractedRayEnd Y: <span id="refractedRayEndY">0</span></p>
+        <p>reflectedRayEnd X: <span id="reflectedRayEndX">0</span></p>
+        <p>reflectedRayEnd Y: <span id="reflectedRayEndY">0</span></p>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('dropletCanvas');
+        const ctx = canvas.getContext('2d');
+        const angleSlider = document.getElementById('angleSlider');
+        const heightSlider = document.getElementById('heightSlider');
+        const incomingAngleSpan = document.getElementById('incomingAngle');
+        const heightSpan = document.getElementById('incomingHeight');
+        const rayStartXSpan = document.getElementById('rayStartX');
+        const rayStartYSpan = document.getElementById('rayStartY');
+        const rayEndXSpan = document.getElementById('rayEndX');
+        const rayEndYSpan = document.getElementById('rayEndY');
+        const refractedRayEndXSpan = document.getElementById('refractedRayEndX');
+        const refractedRayEndYSpan = document.getElementById('refractedRayEndY');
+        const reflectedRayEndXSpan = document.getElementById('reflectedRayEndX');
+        const reflectedRayEndYSpan = document.getElementById('reflectedRayEndY');
+        const firstRefractionAngleSpan = document.getElementById('firstRefractionAngle');
+        const incomingContactAngleSpan = document.getElementById('incomingContactAngle');
+        const secondIncomingAngleSpan = document.getElementById('secondIncomingAngle');
+        const secondRefractionAngleSpan = document.getElementById('secondRefractionAngle');
+        const ReflactionAngleSpan = document.getElementById('ReflactionAngle');
+        const resetButton = document.getElementById('resetButton');
+        const dropletRadius = 120;
+        const dropletCenter = { x: canvas.width / 2, y: canvas.height / 2 };
+        const refractiveIndex = 1.33;
+
+        function drawScene(angle, height) {
+
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // Draw water droplet (circle)
+            ctx.beginPath();
+            ctx.arc(dropletCenter.x, dropletCenter.y, dropletRadius, 0, 2 * Math.PI);
+            ctx.strokeStyle = 'blue';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+            ctx.closePath();
+
+            // Calculate the ray's starting position
+            // Calculate the ray's starting position based on the input angle and height
+            let rayStart = {};
+
+            if (angle === 0) {
+                // When the angle is zero
+                rayStart = {
+                    x: dropletCenter.x - 300,        // Fixed offset of 300 units to the left
+                    y: dropletCenter.y - height      // Vertical offset adjusted based on height
+                };
+            } else {
+                // When the angle is non-zero
+                const angleRad = angle * Math.PI / 180; // Convert angle to radians
+                // Using the tangent relation: tan^-1(tan(angle) * height/distance)
+
+                rayStart = {
+                    x: dropletCenter.x - 300 + (180 - 180 * Math.cos(angleRad)),  // Adjust horizontal offset based on angle
+                    y: dropletCenter.y - height - 180 * Math.sin(angleRad)  // Adjust vertical offset based on height and angle
+                };
+            }
+
+            rayStartXSpan.textContent = rayStart.x.toFixed(2);
+            rayStartYSpan.textContent = rayStart.y.toFixed(2);
+
+
+
+
+            const rayEnd = {
+              x: dropletCenter.x - Math.sqrt(dropletRadius ** 2 - height ** 2),
+              y: dropletCenter.y - height
+              };
+
+            // Calculate dx and dy from rayStart to rayEnd
+            rayEndXSpan.textContent = rayEnd.x.toFixed(2);
+            rayEndYSpan.textContent = rayEnd.y.toFixed(2);
+
+            const incomingAngleRad = angle * Math.PI / 180;
+
+            const normalAngle = Math.asin(height / dropletRadius);
+
+            // Adjust normalAngle to the range [0, 2 * Math.PI]
+            const incomingAngleContactPoint = incomingAngleRad - normalAngle;
+
+            // Draw incoming ray
+            ctx.beginPath();
+            ctx.moveTo(rayStart.x, rayStart.y);
+            ctx.lineTo(rayEnd.x, rayEnd.y);
+            ctx.strokeStyle = 'red';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+            ctx.closePath();
+
+            if (axisToggle.checked) {
+                ctx.beginPath();
+                ctx.moveTo(dropletCenter.x, dropletCenter.y);
+                // Extend the axis beyond the ray end point
+                const extendedLength = 150;
+                const dx = rayEnd.x - dropletCenter.x;
+                const dy = rayEnd.y - dropletCenter.y;
+                const distance = Math.sqrt(dx * dx + dy * dy);
+                const extendedX = rayEnd.x + (dx / distance) * extendedLength;
+                const extendedY = rayEnd.y + (dy / distance) * extendedLength;
+
+                ctx.lineTo(extendedX, extendedY);
+                ctx.strokeStyle = 'orange';
+                ctx.lineWidth = 1;
+                ctx.setLineDash([5, 5]);
+                ctx.stroke();
+                ctx.closePath();
+                ctx.setLineDash([]); // Reset dash style
+            }
+
+            incomingContactAngleSpan.textContent = (incomingAngleContactPoint * 180 / Math.PI).toFixed(2);
+
+            // Calculate first refraction using Snell's law
+            const refractedAngleRad = Math.asin(Math.sin(incomingAngleContactPoint) / refractiveIndex);
+            const refractedDistance = 2 * dropletRadius * Math.cos(refractedAngleRad); // Distance from the center to the perimeter of the droplet
+            // Calculate the angle between rayEnd and dropletCenter
+            const alpha = Math.atan2(rayEnd.y - dropletCenter.y, rayEnd.x - dropletCenter.x);
+
+            // Calculate the endpoint of the refracted ray on the droplet's perimeter
+            const refractedRayEnd = {
+                x: dropletCenter.x - dropletRadius * Math.cos((2 * refractedAngleRad) + alpha),
+                y: dropletCenter.y - dropletRadius * Math.sin((2 * refractedAngleRad) + alpha)
+            };
+
+            if (axisToggle.checked) {
+                // Draw axis from droplet center to first refraction point on opposite boundary
+                ctx.beginPath();
+                ctx.moveTo(dropletCenter.x, dropletCenter.y);
+                const extendedLength_2 = 150;
+                const dx_2 = refractedRayEnd.x - dropletCenter.x;
+                const dy_2 = refractedRayEnd.y - dropletCenter.y;
+                const distance_2 = Math.sqrt(dx_2 * dx_2 + dy_2 * dy_2);
+                const extendedX_2 = refractedRayEnd.x + (dx_2 / distance_2) * extendedLength_2;
+                const extendedY_2 = refractedRayEnd.y + (dy_2 / distance_2) * extendedLength_2;
+                ctx.lineTo(extendedX_2, extendedY_2);
+                ctx.strokeStyle = 'blue';
+                ctx.lineWidth = 1;
+                ctx.setLineDash([5, 5]);
+                ctx.stroke();
+                ctx.closePath();
+                ctx.setLineDash([]); // Reset dash style
+            }
+
+                // Draw first refracted ray
+            ctx.beginPath();
+            ctx.moveTo(rayEnd.x, rayEnd.y);
+            ctx.lineTo(refractedRayEnd.x, refractedRayEnd.y);
+            ctx.strokeStyle = 'green';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+            ctx.closePath();
+
+            // Update first refraction angle information
+            firstRefractionAngleSpan.textContent = (refractedAngleRad * 180 / Math.PI).toFixed(2);
+
+            // Calculate second refraction or reflection
+            const reflectedAngleRad = (refractedAngleRad);
+            const secondIncomingAngle = -(refractedAngleRad);
+            // The incident angle is the angle between the refracted ray and the normal
+            // Calculate the reflected angle by mirroring it across the normal
+            // To reflect correctly, subtract from 2π or adjust the signs depending on the quadrant
+            const reflectedDistance = 2 * dropletRadius * Math.cos(reflectedAngleRad);
+            const reflectedAngleRelativeToGround = Math.atan2(
+                refractedRayEnd.y - rayEnd.y,
+                refractedRayEnd.x - rayEnd.x
+            ) + (2 * reflectedAngleRad); // Add twice the reflected angle to adjust appropriately
+
+
+            // Calculate the endpoint of the reflected ray on the droplet's perimeter
+            const reflectedRayEnd = {
+                x: refractedRayEnd.x - (reflectedDistance * Math.cos(reflectedAngleRelativeToGround)),
+                y: refractedRayEnd.y - (reflectedDistance * Math.sin(reflectedAngleRelativeToGround))
+            };
+
+
+
+            if (axisToggle.checked) {
+                // Draw axis from droplet center to the reflection point (extended beyond reflectedRayEnd)
+                ctx.beginPath();
+                ctx.moveTo(dropletCenter.x, dropletCenter.y);
+                const extendedLengthReflection = 150; // Length to extend the axis beyond the reflection point
+                const dxReflection = reflectedRayEnd.x - dropletCenter.x;
+                const dyReflection = reflectedRayEnd.y - dropletCenter.y;
+                const distanceReflection = Math.sqrt(dxReflection * dxReflection + dyReflection * dyReflection);
+                const extendedXReflection = reflectedRayEnd.x + (dxReflection / distanceReflection) * extendedLengthReflection;
+                const extendedYReflection = reflectedRayEnd.y + (dyReflection / distanceReflection) * extendedLengthReflection;
+                ctx.lineTo(extendedXReflection, extendedYReflection);
+                ctx.strokeStyle = 'green'; // Keep the color green as you had before
+                ctx.lineWidth = 1;
+                ctx.setLineDash([5, 5]);
+                ctx.stroke();
+                ctx.closePath();
+                ctx.setLineDash([]); // Reset dash style
+            }
+
+
+                // Draw reflected ray
+                // Draw reflected ray
+                // Draw the reflected ray starting from the refracted point
+            ctx.beginPath();
+            ctx.moveTo(refractedRayEnd.x, refractedRayEnd.y);
+            ctx.lineTo(reflectedRayEnd.x, reflectedRayEnd.y);
+            ctx.strokeStyle = 'purple'; // Color for the reflected ray
+            ctx.lineWidth = 2;
+            ctx.stroke();
+            ctx.closePath();
+
+            refractedRayEndXSpan.textContent = refractedRayEnd.x.toFixed(2);
+            refractedRayEndYSpan.textContent = refractedRayEnd.y.toFixed(2);
+            reflectedRayEndXSpan.textContent = reflectedRayEnd.x.toFixed(2);
+            reflectedRayEndYSpan.textContent = reflectedRayEnd.y.toFixed(2);
+            ReflactionAngleSpan.textContent = (reflectedAngleRad * 180 / Math.PI).toFixed(2);
+
+
+                // Update second incoming and refraction angle information
+            secondIncomingAngleSpan.textContent = (secondIncomingAngle * 180 / Math.PI).toFixed(2);
+            // Calculate the second refraction using Snell's law
+            const secondRefractionAngleRad = Math.asin(Math.sin(reflectedAngleRad) * refractiveIndex);
+            const secondRefractedDistance = 250;
+
+            // Calculate the endpoint of the second refracted ray
+            const secondRefractedRayEnd = {
+                x: reflectedRayEnd.x - (secondRefractedDistance * Math.cos(reflectedAngleRad)),
+                y: reflectedRayEnd.y - (secondRefractedDistance * Math.sin(reflectedAngleRad))
+            };
+
+            // Draw the second refracted ray
+            ctx.beginPath();
+            ctx.moveTo(reflectedRayEnd.x, reflectedRayEnd.y);
+            ctx.lineTo(secondRefractedRayEnd.x, secondRefractedRayEnd.y);
+            ctx.strokeStyle = 'grey'; // Color for the second refracted ray
+            ctx.lineWidth = 2;
+            ctx.stroke();
+            ctx.closePath();
+
+            // Update second incoming and refraction angle information
+            secondIncomingAngleSpan.textContent = (reflectedAngleRad * 180 / Math.PI).toFixed(2);
+            secondRefractionAngleSpan.textContent = (secondRefractionAngleRad * 180 / Math.PI).toFixed(2);
+
+
+            incomingAngleSpan.textContent = angle;
+            heightSpan.textContent = height;
+            }
+
+        // Initial draw
+        drawScene(0, 0);
+
+        // Update drawing when sliders change
+        angleSlider.addEventListener('input', (event) => {
+            const angle = parseFloat(event.target.value);
+            const height = parseInt(heightSlider.value); // Use current value of height slider
+            drawScene(angle, height);
+        });
+
+        heightSlider.addEventListener('input', (event) => {
+            const height = parseInt(event.target.value);
+            const angle = parseFloat(angleSlider.value);
+            drawScene(angle, height);
+        });
+
+        axisToggle.addEventListener('input', () => {
+            const angle = parseFloat(angleSlider.value);
+            const height = parseInt(heightSlider.value);
+            drawScene(angle, height);
+        });
+
+        resetButton.addEventListener('click', () => {
+            angleSlider.value = 0;
+            heightSlider.value = 0;
+            drawScene(0, 0);
+        });
+
+
+    </script>
+</body>
+</html>
