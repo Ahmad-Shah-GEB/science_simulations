@@ -7,6 +7,7 @@
   <style>
     body {
       font-family: Arial, sans-serif;
+      /* Center overall content */
       display: flex;
       flex-direction: column;
       align-items: center;
@@ -14,12 +15,14 @@
       padding: 20px;
     }
     .controls-container {
-      display: flex;
-      justify-content: space-between;
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 20px;
       width: 100%;
-      max-width: 500px;
+      max-width: 800px;
+      margin-bottom: 20px;
     }
-    .controls {
+    .control-column {
       display: flex;
       flex-direction: column;
       align-items: flex-start;
@@ -29,29 +32,40 @@
       color: #1142F8;
       font-weight: 600;
     }
-
-    /* The outer row that holds two "pot-and-graph" sections side by side */
+    /* Container for the simulation (pots, tubs, and bottom controls) */
+    .simulation-container {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      margin-top: 20px;
+    }
+    /* Each plant container groups its pot and tub */
+    .plant-container, .pot-tub-container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+    /* Pots row holds plant containers side by side */
     .pots-row {
       display: flex;
-      gap: 40px;  /* space between left and right sections */
-      margin-top: 20px;
-      align-items: flex-start; /* top-align the boxes */
-    }
-
-    /* A wrapper that holds a pot and its graph side by side */
-    .pot-and-graph {
-      display: flex;
+      gap: 40px;
       align-items: flex-start;
-      gap: 20px; /* space between pot and graph block */
     }
-
-    /* We want the pot in its own brown box */
-    .pot {
+    /* Plant 1 pot */
+    .pot-only {
       width: 150px;
-      height: 350px;
+      height: 360px;
       background-color: brown;
       position: relative;
-      overflow: hidden; /* So leaves won't stick out visually if they're large */
+      overflow: hidden;
+    }
+    /* Plant 2 pot */
+    .pot {
+      width: 150px;
+      height: 360px;
+      background-color: brown;
+      position: relative;
+      overflow: hidden;
     }
     .plant {
       width: 20px;
@@ -62,13 +76,12 @@
       left: 50%;
       transform: translateX(-50%);
     }
-
     /* Leaf images */
     .leaf {
       position: absolute;
       width: 15px;
       height: auto;
-      bottom: 0; /* We'll update once, then not move it again */
+      bottom: 0;
     }
     .leaf-left {
       right: 44.3%;
@@ -80,242 +93,196 @@
       transform-origin: 0% 50%;
       transform: rotate(-150deg);
     }
-
-    .time {
-      margin-top: 20px;
-    }
-    .height-records {
-      margin-top: 20px;
+    /* Tub styling – a cylinder-ish container underneath each pot.
+       Removed margin-top so the tub is flush with the pot's bottom. */
+    .tub {
+      width: 150px;
+      height: 60px;
+      background-color: #e0e0e0;
+      border: 2px solid #aaa;
+      border-radius: 0 0 75px 75px;
       display: flex;
       justify-content: center;
-      gap: 50px;
-      width: 100%;
-      max-width: 600px;
+      align-items: center;
+      margin-top: 0;
     }
-    .height-box {
-      border: 1px solid #aaa;
-      padding: 10px;
-      min-width: 120px;
-      text-align: center;
+    .tub img {
+      width: 40px;
+      height: 40px;
     }
-
+    /* Container for Plant 2's pot and tub with the graph */
+    .pot-and-graph {
+      display: flex;
+      flex-direction: row;
+      align-items: flex-start;
+      gap: 20px;
+    }
     /* Graph styling */
     .graph-block {
       display: flex;
       flex-direction: column;
       align-items: center;
     }
-
+    .sim-controls {
+      display: flex;
+      gap: 10px;
+      margin-top: 10px;
+    }
     .speed-controls {
-      margin-top: 10px; /* or adjust as needed */
       display: flex;
       gap: 10px;
       align-items: center;
       font-size: 12px;
+      margin-bottom: 10px;
     }
     .speed-controls button {
       padding: 3px 6px;
       font-size: 12px;
     }
-
-    .sim-controls {
-      display: flex;
-      gap: 10px; /* Adjust spacing as needed */
-      margin-top: 10px; /* Optional: add space above the row */
+    .time {
+      margin-bottom: 10px;
+      margin-left: 145px;
     }
-
-
-
-
+    .height-records {
+      display: flex;
+      gap: 70px;
+      width: 100%;
+      justify-content: flex-start;
+    }
+    .height-box {
+      border: 1px solid #aaa;
+      padding: 5px;
+      min-width: 120px;
+      text-align: center;
+    }
     canvas {
-      border: 1px solid #888; /* so we can see the chart area */
-      display: none;          /* hidden by default */
-      margin-top: 10px;       /* spacing above the canvas */
+      border: 1px solid #888;
+      display: none;
+      margin-top: 10px;
+    }
+    /* Tooltip styling for the graph hover */
+    #tooltip {
+      position: absolute;
+      background: rgba(255, 255, 255, 0.9);
+      border: 1px solid #ccc;
+      padding: 2px 5px;
+      font-size: 12px;
+      pointer-events: none;
+      display: none;
+      z-index: 1000;
     }
   </style>
 </head>
 <body>
   <h1>Plant Growth Simulation</h1>
 
-  <!-- Controls Container (Pot 1 on left, Pot 2 on right) -->
+  <!-- Updated Controls Container: Four Columns -->
   <div class="controls-container">
-    <!-- Controls for Pot 1 -->
-    <div class="controls">
-      <label class="slider-label" for="temperature1">
-        Temperature (°C) - Pot 1:
-      </label>
-      <input
-        type="range"
-        id="temperature1"
-        min="0"
-        max="50"
-        step="1"
-        value="25"
-        oninput="temperatureValue1.textContent = this.value"
-      />
+    <!-- Column 1: Plant 1 Temperature and Light -->
+    <div class="control-column">
+      <label class="slider-label" for="temperature1">Temp. (°C) - Pot 1:</label>
+      <input type="range" id="temperature1" min="0" max="50" step="1" value="25" oninput="temperatureValue1.textContent = this.value" />
       <span id="temperatureValue1">25</span>
 
-      <label class="slider-label" for="humidity1">
-        Humidity (%) - Pot 1:
-      </label>
-      <input
-        type="range"
-        id="humidity1"
-        min="0"
-        max="100"
-        step="1"
-        value="50"
-        oninput="humidityValue1.textContent = this.value"
-      />
+      <label class="slider-label" for="light1">Light (hours) - Pot 1:</label>
+      <input type="range" id="light1" min="0" max="24" step="1" value="12" oninput="lightValue1.textContent = this.value" />
+      <span id="lightValue1">12</span>
+    </div>
+
+    <!-- Column 2: Plant 1 Humidity and Fan Speed -->
+    <div class="control-column">
+      <label class="slider-label" for="humidity1">Humidity (%) - Pot 1:</label>
+      <input type="range" id="humidity1" min="0" max="100" step="1" value="50" oninput="humidityValue1.textContent = this.value" />
       <span id="humidityValue1">50</span>
 
-      <label class="slider-label" for="light1">
-        Light (hours) - Pot 1:
-      </label>
-      <input
-        type="range"
-        id="light1"
-        min="0"
-        max="24"
-        step="1"
-        value="12"
-        oninput="lightValue1.textContent = this.value"
-      />
-      <span id="lightValue1">12</span>
-
-      <!-- Fan speed for pot 1 -->
-      <label class="slider-label" for="fanspeed1">
-        Fan Speed - Pot 1:
-      </label>
-      <input
-        type="range"
-        id="fanspeed1"
-        min="0"
-        max="5"
-        step="1"
-        value="0"
-        oninput="fanspeedValue1.textContent = this.value"
-      />
+      <label class="slider-label" for="fanspeed1">Fan Speed - Pot 1:</label>
+      <input type="range" id="fanspeed1" min="0" max="5" step="1" value="0" oninput="fanspeedValue1.textContent = this.value" />
       <span id="fanspeedValue1">0</span>
     </div>
 
-    <!-- Controls for Pot 2 -->
-    <div class="controls">
-      <label class="slider-label" for="temperature2">
-        Temperature (°C) - Pot 2:
-      </label>
-      <input
-        type="range"
-        id="temperature2"
-        min="0"
-        max="50"
-        step="1"
-        value="25"
-        oninput="temperatureValue2.textContent = this.value"
-      />
+    <!-- Column 3: Plant 2 Temperature and Light -->
+    <div class="control-column">
+      <label class="slider-label" for="temperature2">Temp. (°C) - Pot 2:</label>
+      <input type="range" id="temperature2" min="0" max="50" step="1" value="25" oninput="temperatureValue2.textContent = this.value" />
       <span id="temperatureValue2">25</span>
 
-      <label class="slider-label" for="humidity2">
-        Humidity (%) - Pot 2:
-      </label>
-      <input
-        type="range"
-        id="humidity2"
-        min="0"
-        max="100"
-        step="1"
-        value="50"
-        oninput="humidityValue2.textContent = this.value"
-      />
+      <label class="slider-label" for="light2">Light (hours) - Pot 2:</label>
+      <input type="range" id="light2" min="0" max="24" step="1" value="12" oninput="lightValue2.textContent = this.value" />
+      <span id="lightValue2">12</span>
+    </div>
+
+    <!-- Column 4: Plant 2 Humidity and Fan Speed -->
+    <div class="control-column">
+      <label class="slider-label" for="humidity2">Humidity (%) - Pot 2:</label>
+      <input type="range" id="humidity2" min="0" max="100" step="1" value="50" oninput="humidityValue2.textContent = this.value" />
       <span id="humidityValue2">50</span>
 
-      <label class="slider-label" for="light2">
-        Light (hours) - Pot 2:
-      </label>
-      <input
-        type="range"
-        id="light2"
-        min="0"
-        max="24"
-        step="1"
-        value="12"
-        oninput="lightValue2.textContent = this.value"
-      />
-      <span id="lightValue2">12</span>
-
-      <!-- Fan speed for pot 2 -->
-      <label class="slider-label" for="fanspeed2">
-        Fan Speed - Pot 2:
-      </label>
-      <input
-        type="range"
-        id="fanspeed2"
-        min="0"
-        max="5"
-        step="1"
-        value="0"
-        oninput="fanspeedValue2.textContent = this.value"
-      />
+      <label class="slider-label" for="fanspeed2">Fan Speed - Pot 2:</label>
+      <input type="range" id="fanspeed2" min="0" max="5" step="1" value="0" oninput="fanspeedValue2.textContent = this.value" />
       <span id="fanspeedValue2">0</span>
     </div>
   </div>
 
-  <!-- Buttons -->
+  <!-- Simulation Buttons -->
   <div class="sim-controls">
     <button onclick="simulateGrowth()">Simulate Growth</button>
     <button onclick="resetSimulation()">Reset</button>
     <button id="pauseResumeBtn" onclick="togglePause()">Pause</button>
   </div>
 
-
-  <!-- Two columns: pot-and-graph for pot 1, pot-and-graph for pot 2 -->
-  <div class="pots-row">
-    <!-- Left pot-and-graph (Plant 1) -->
-    <div class="pot-and-graph">
-      <div class="graph-block">
-        <button id="graphToggle1" onclick="toggleGraph(1)">Show Graph (Plant 1)</button>
-        <canvas id="graphCanvas1" width="400" height="300"></canvas>
+  <!-- Simulation Container: Pots, tubs, and bottom controls -->
+  <div class="simulation-container">
+    <div class="pots-row">
+      <!-- Plant 1 Container -->
+      <div class="plant-container">
+        <div class="pot-only">
+          <div class="plant" id="plant1"></div>
+        </div>
+        <div class="tub" id="tub1">
+          <img id="face1" src="smile.png" alt="Plant 1 face">
+        </div>
       </div>
-      <div class="pot">
-        <div class="plant" id="plant1"></div>
+
+      <!-- Plant 2 Container with Graph to its right -->
+      <div class="pot-and-graph">
+        <div class="pot-tub-container">
+          <div class="pot">
+            <div class="plant" id="plant2"></div>
+          </div>
+          <div class="tub" id="tub2">
+            <img id="face2" src="smile.png" alt="Plant 2 face">
+          </div>
+        </div>
+        <div class="graph-block">
+          <button id="graphToggleCombined" onclick="toggleCombinedGraph()">Show Combined Graph</button>
+          <canvas id="combinedGraphCanvas" width="400" height="300" style="width:400px; height:300px;"></canvas>
+        </div>
       </div>
     </div>
 
-    <!-- Right pot-and-graph (Plant 2) -->
-    <div class="pot-and-graph">
-      <div class="pot">
-        <div class="plant" id="plant2"></div>
+    <!-- Bottom Controls: Speed, Day, Height boxes -->
+    <div class="bottom-controls">
+      <div class="speed-controls">
+        <button onclick="decreaseSpeed()">Slower Simulation</button>
+        <button onclick="increaseSpeed()">Faster Simulation</button>
+        <span id="speedDisplay">Speed: 1x</span>
       </div>
-      <div class="graph-block">
-        <button id="graphToggle2" onclick="toggleGraph(2)">Show Graph (Plant 2)</button>
-        <canvas id="graphCanvas2" width="400" height="300"></canvas>
+      <div class="time" id="time">Day: 0</div>
+      <div class="height-records">
+        <div class="height-box">
+          <strong>Plant 1 Height</strong>
+          <div id="heightDisplay1">5 cm (2 inch)</div>
+        </div>
+        <div class="height-box">
+          <strong>Plant 2 Height</strong>
+          <div id="heightDisplay2">5 cm (2 inch)</div>
+        </div>
       </div>
     </div>
   </div>
 
-
-  <div class="speed-controls">
-    <button onclick="decreaseSpeed()">Slower Simulation</button>
-    <button onclick="increaseSpeed()">Faster Simulation</button>
-    <span id="speedDisplay">Speed: 1x</span>
-  </div>
-
-
-
-  <!-- Display: Day count -->
-  <div class="time" id="time">Day: 0</div>
-
-  <!-- Display boxes for each plant's height -->
-  <div class="height-records">
-    <div class="height-box">
-      <strong>Plant 1 Height</strong>
-      <div id="heightDisplay1">5 cm (2 inch)</div>
-    </div>
-    <div class="height-box">
-      <strong>Plant 2 Height</strong>
-      <div id="heightDisplay2">5 cm (2 inch)</div>
-    </div>
-  </div>
+  <!-- Tooltip for graph hover -->
+  <div id="tooltip"></div>
 
   <script>
     /* =======================
@@ -332,40 +299,55 @@
     let cancelGrowth2 = false;
     let speedMultiplier = 1;
 
-
-    // We'll store day-by-day heights (in cm) for the graphs
+    // Store day-by-day heights (in cm) for the graph
     const dayHeights1 = [];
     const dayHeights2 = [];
 
-    // 1px ≈ 0.264583 mm => ~0.0264583 cm
-    const PX_TO_MM = 0.264583;  // for labeling the "cm" in the text
-    // We'll convert px -> cm for the graph separately.
-
-    // Leaf threshold
+    // 1px ≈ 0.264583 mm
+    const PX_TO_MM = 0.264583;
     const LEAF_THRESHOLD = 40;
     const timeDisplay = document.getElementById('time');
     const plant1 = document.getElementById('plant1');
     const plant2 = document.getElementById('plant2');
 
+    /* =======================
+       Helper Stress Functions (Increased Sensitivity)
+    ======================= */
+    function tempStress(t) {
+      if (t >= 20 && t <= 30) return 1;
+      let distance = (t < 20) ? (20 - t) : (t - 30);
+      return Math.max(1 - distance * 0.05, 0);
+    }
+    function humidityStress(h) {
+      if (h >= 40 && h <= 60) return 1;
+      let distance = (h < 40) ? (40 - h) : (h - 60);
+      return Math.max(1 - distance * 0.03, 0);
+    }
+    function lightStress(l) {
+      if (l >= 8 && l <= 16) return 1;
+      let distance = (l < 8) ? (8 - l) : (l - 16);
+      return Math.max(1 - distance * 0.2, 0);
+    }
 
     /* =======================
-       simulateGrowth
+       Speed Controls
     ======================= */
     function increaseSpeed() {
       speedMultiplier *= 2;
       if (speedMultiplier > 4) speedMultiplier = 4;
       document.getElementById('speedDisplay').textContent = "Speed: " + speedMultiplier + "x";
     }
-
     function decreaseSpeed() {
       speedMultiplier /= 2;
-      if (speedMultiplier < 0.25) speedMultiplier = 0.25; // set a minimum speed if desired
+      if (speedMultiplier < 0.25) speedMultiplier = 0.25;
       document.getElementById('speedDisplay').textContent = "Speed: " + speedMultiplier + "x";
     }
 
-
+    /* =======================
+       simulateGrowth
+    ======================= */
     function simulateGrowth() {
-      // Read initial slider inputs
+      // Read slider inputs for both plants
       const temp1 = document.getElementById('temperature1').value;
       const humidity1 = document.getElementById('humidity1').value;
       const light1 = document.getElementById('light1').value;
@@ -377,12 +359,11 @@
       const fanspeed2 = document.getElementById('fanspeed2').value;
 
       resetSimulation();
-
       cancelGrowth1 = false;
       cancelGrowth2 = false;
       isPaused = false;
 
-      // Start each plant's growth
+      // Start growth for both plants
       startGrowing(plant1, temp1, humidity1, light1, fanspeed1, 'heightDisplay1', 1);
       startGrowing(plant2, temp2, humidity2, light2, fanspeed2, 'heightDisplay2', 2);
 
@@ -395,7 +376,7 @@
     ======================= */
     function startGrowing(plant, temp, humidity, light, fanspeed, displayId, plantNumber) {
       const baseGrowthRate = 0.08;
-      let height = 20; // start at 20px
+      let height = 20; // starting height in px
       plant.style.height = height + 'px';
 
       const leafSets = [];
@@ -403,8 +384,13 @@
       const leafSpawnGap = 35;
       const pot = plant.parentElement;
 
-      // The grow function
       function grow() {
+        // Stop growth if light is 0 or less.
+        if (parseFloat(light) <= 0) {
+          updateFace(plantNumber, 0);
+          return;
+        }
+
         if (
           (plantNumber === 1 && cancelGrowth1) ||
           (plantNumber === 2 && cancelGrowth2) ||
@@ -415,7 +401,7 @@
           return;
         }
 
-        // Read the current environment each frame
+        // Read current environmental inputs
         let currentTemp, currentHum, currentLight, currentFan;
         if (plantNumber === 1) {
           currentTemp = parseFloat(document.getElementById('temperature1').value) || 25;
@@ -429,48 +415,36 @@
           currentFan = parseFloat(document.getElementById('fanspeed2').value) || 0;
         }
 
-        // Stress functions
-        function tempStress(t) {
-          if (t >= 20 && t <= 30) return 1;
-          let distance = (t < 20) ? (20 - t) : (t - 30);
-          const factor = 1 - distance * 0.05;
-          return Math.max(factor, 0);
-        }
-        function humidityStress(h) {
-          if (h >= 40 && h <= 60) return 1;
-          let distance = (h < 40) ? (40 - h) : (h - 60);
-          const factor = 1 - distance * 0.01;
-          return Math.max(factor, 0);
-        }
-        function lightStress(l) {
-          if (l >= 8 && l <= 16) return 1;
-          let distance = (l < 8) ? (8 - l) : (l - 16);
-          const factor = 1 - distance * 0.1;
-          return Math.max(factor, 0);
+        // If light is 0, update face and stop growth.
+        if (currentLight <= 0) {
+          updateFace(plantNumber, 0);
+          return;
         }
 
-        /********************************************
-         * Fan effect: lowers humidity more, temp a bit
-         ********************************************/
-        let effectiveTemp = currentTemp - currentFan * 0.3;
+        // Calculate effective light for stem thickness (minimum 3 hours)
+        let effectiveLightForWidth = Math.max(currentLight, 3);
+        let lightFactor = (effectiveLightForWidth >= 8) ? 1 : (effectiveLightForWidth / 8);
+        plant.style.width = (20 * lightFactor) + 'px';
+
+        // For growth rate, ignore light so the plant can grow tall.
+        let effectiveTemp = currentTemp - currentFan * 0.5;
         let effectiveHum = currentHum - currentFan * 5;
-        if (effectiveHum < 0) effectiveHum = 0; // clamp humidity
+        if (effectiveHum < 0) effectiveHum = 0;
 
-        // Calculate combined factor
-        const tFactor = tempStress(effectiveTemp);
-        const hFactor = humidityStress(effectiveHum);
-        const lFactor = lightStress(currentLight);
-        const overallFactor = tFactor * hFactor * lFactor;
+        // Calculate an elongation factor for extra height in low light.
+        let elongationFactor = 1;
+        if (currentLight > 0 && currentLight < 8) {
+          elongationFactor = Math.min(8 / currentLight, 2);
+        }
 
-        // Growth rate
-        let growthRate = baseGrowthRate * overallFactor * speedMultiplier;
+        const overallFactor = tempStress(effectiveTemp) * humidityStress(effectiveHum);
+        let growthRate = baseGrowthRate * overallFactor * elongationFactor * speedMultiplier;
 
-
-        // Increase plant height
+        // Increase height and update style
         height += growthRate;
         plant.style.height = height + 'px';
 
-        // Check for new leaf spawn
+        // Spawn leaves if height threshold reached
         if (height >= nextLeafSpawn) {
           const leftEl = document.createElement('img');
           leftEl.src = 'left-leaf.png';
@@ -490,22 +464,31 @@
           nextLeafSpawn += leafSpawnGap;
         }
 
-        // Scale existing leaves if you want
+        // Scale leaves: cap the maximum scale to 4 * lightFactor.
         leafSets.forEach(leafSet => {
           const extraHeight = Math.max(0, height - leafSet.spawnHeight);
           let scaleFactor = 1 + extraHeight * 0.02;
-          scaleFactor = Math.min(scaleFactor, 4);
+          scaleFactor = Math.min(scaleFactor, 4 * lightFactor);
           leafSet.leftEl.style.transform = `rotate(150deg) scale(${scaleFactor})`;
           leafSet.rightEl.style.transform = `rotate(-150deg) scale(${scaleFactor})`;
         });
 
-        // Convert px => mm => "cm"
+        // Update height display (px -> mm -> cm and inches)
+        const MAX_HEIGHT_CM = 100; // cap maximum height
         const heightInMM = height * PX_TO_MM;
-        const heightInInches = heightInMM * 0.393701; // 1 mm = 0.0393701 in
+        if (heightInMM > MAX_HEIGHT_CM) {
+          height = MAX_HEIGHT_CM / PX_TO_MM;
+        }
+        const heightInInches = heightInMM * 0.393701;
         document.getElementById(displayId).textContent =
           heightInMM.toFixed(0) + ' cm (' + heightInInches.toFixed(0) + ' in)';
 
-        // Continue up to 60 days
+        // --- Update Face Display Based on Happiness ---
+        let happiness = (tempStress(effectiveTemp) + humidityStress(effectiveHum) + lightStress(currentLight)) / 3;
+        updateFace(plantNumber, happiness);
+        // --- End Face Update ---
+
+        // Continue growth until day 60
         if (day < 60) {
           if (plantNumber === 1) {
             animationId1 = requestAnimationFrame(grow);
@@ -515,27 +498,38 @@
         }
       }
 
-      // Save reference to grow fn so we can resume after pause
       if (plantNumber === 1) {
         growthFn1 = grow;
       } else {
         growthFn2 = grow;
       }
 
-      // Start growth
       grow();
     }
 
+    // Function to update the face image based on happiness value
+    function updateFace(plantNumber, happiness) {
+      let faceImg = document.getElementById('face' + plantNumber);
+      if (happiness >= 0.9) {
+        faceImg.src = 'smile.png';
+      } else if (happiness >= 0.7) {
+        faceImg.src = 'straight_face.png';
+      } else if (happiness >= 0.5) {
+        faceImg.src = 'sad.png';
+      } else {
+        faceImg.src = 'cry.png';
+      }
+    }
+
     /* =======================
-       Day Counter + Data
+       Day Counter + Data Logging
     ======================= */
     function updateDay() {
       if (!isPaused && day < 60) {
         day++;
         timeDisplay.textContent = 'Day: ' + day;
 
-        // Each day, record the current heights (px -> cm) for the graphs
-        const PX_TO_CM = 0.264583; // 1px ~ 0.264583 mm => ~0.0264583 cm, but your code uses 0.264583 for "cm" label
+        const PX_TO_CM = 0.264583;
         const h1_px = parseFloat(plant1.style.height) || 20;
         const h2_px = parseFloat(plant2.style.height) || 20;
         const h1_cm = h1_px * PX_TO_CM;
@@ -544,20 +538,13 @@
         dayHeights1.push({ day: day, heightCm: h1_cm });
         dayHeights2.push({ day: day, heightCm: h2_cm });
 
-        // If graph is visible, redraw
-        const canvas1 = document.getElementById('graphCanvas1');
-        if (canvas1.style.display === 'block') {
-          drawGraph(canvas1, dayHeights1, 1);
-        }
-        const canvas2 = document.getElementById('graphCanvas2');
-        if (canvas2.style.display === 'block') {
-          drawGraph(canvas2, dayHeights2, 2);
+        const canvas = document.getElementById('combinedGraphCanvas');
+        if (canvas.style.display === 'block') {
+          drawCombinedGraph(canvas);
         }
       }
-
       if (day < 60) {
         dayTimer = setTimeout(updateDay, 1000 / speedMultiplier);
-
       }
     }
 
@@ -565,15 +552,13 @@
        Reset Simulation
     ======================= */
     function resetSimulation() {
-      // Stop day updates
       if (dayTimer !== null) {
         clearTimeout(dayTimer);
         dayTimer = null;
       }
       day = 0;
-      timeDisplay.textContent = 'Day: 0';
+      timeDisplay.textContent = 'Day: ' + day;
 
-      // Cancel growth
       cancelGrowth1 = true;
       cancelGrowth2 = true;
       if (animationId1 !== null) {
@@ -585,16 +570,13 @@
         animationId2 = null;
       }
 
-      // Reset plants
       plant1.style.height = '20px';
       plant2.style.height = '20px';
 
-      // Remove old leaves
-      document.querySelectorAll('.pot').forEach(pot => {
+      document.querySelectorAll('.pot, .pot-only').forEach(pot => {
         pot.querySelectorAll('.leaf').forEach(leaf => pot.removeChild(leaf));
       });
 
-      // Reset displayed height
       const initMM = 20 * PX_TO_MM;
       const initInch = initMM * 0.393701;
       document.getElementById('heightDisplay1').textContent =
@@ -602,19 +584,18 @@
       document.getElementById('heightDisplay2').textContent =
         initMM.toFixed(0) + ' cm (' + initInch.toFixed(0) + ' in)';
 
-      // Clear stored dayHeights
       dayHeights1.length = 0;
       dayHeights2.length = 0;
 
-      // Hide graphs
-      document.getElementById('graphCanvas1').style.display = 'none';
-      document.getElementById('graphToggle1').textContent = 'Show Graph (Plant 1)';
-      document.getElementById('graphCanvas2').style.display = 'none';
-      document.getElementById('graphToggle2').textContent = 'Show Graph (Plant 2)';
+      const canvas = document.getElementById('combinedGraphCanvas');
+      if (canvas.style.display !== 'block') {
+        canvas.style.display = 'none';
+        document.getElementById('graphToggleCombined').textContent = 'Show Combined Graph';
+      }
     }
 
     /* =======================
-       Pause/Resume
+       Pause/Resume Simulation
     ======================= */
     function togglePause() {
       const pauseBtn = document.getElementById("pauseResumeBtn");
@@ -624,7 +605,6 @@
       } else {
         isPaused = false;
         pauseBtn.textContent = "Pause";
-
         if (day < 60) {
           if (!cancelGrowth1 && animationId1 === null && typeof growthFn1 === "function") {
             growthFn1();
@@ -637,41 +617,38 @@
     }
 
     /* =======================
-       Show/Hide Graph
+       Toggle Combined Graph
     ======================= */
-    function toggleGraph(plantNumber) {
-      const btnId = (plantNumber === 1) ? 'graphToggle1' : 'graphToggle2';
-      const canvasId = (plantNumber === 1) ? 'graphCanvas1' : 'graphCanvas2';
-      const dataArray = (plantNumber === 1) ? dayHeights1 : dayHeights2;
-
-      const buttonEl = document.getElementById(btnId);
-      const canvasEl = document.getElementById(canvasId);
-
-      if (canvasEl.style.display === 'none' || !canvasEl.style.display) {
+    function toggleCombinedGraph() {
+      const buttonEl = document.getElementById('graphToggleCombined');
+      const canvasEl = document.getElementById('combinedGraphCanvas');
+      if (canvasEl.style.display === 'none' || canvasEl.style.display === '') {
         canvasEl.style.display = 'block';
-        buttonEl.textContent = `Hide Graph (Plant ${plantNumber})`;
-        drawGraph(canvasEl, dataArray, plantNumber);
+        buttonEl.textContent = 'Hide Combined Graph';
+        drawCombinedGraph(canvasEl);
       } else {
         canvasEl.style.display = 'none';
-        buttonEl.textContent = `Show Graph (Plant ${plantNumber})`;
+        buttonEl.textContent = 'Show Combined Graph';
       }
     }
 
     /* =======================
-       drawGraph
+       Draw Combined Graph
     ======================= */
-    function drawGraph(canvasEl, dataArray, plantNumber) {
+    function drawCombinedGraph(canvasEl) {
+      canvasEl.width = 400;
+      canvasEl.height = 300;
+
       const ctx = canvasEl.getContext('2d');
       ctx.clearRect(0, 0, canvasEl.width, canvasEl.height);
 
-      if (dataArray.length < 2) return;
-
       const margin = 40;
-      const w = canvasEl.width - margin * 2;
-      const h = canvasEl.height - margin * 2;
-
+      const canvasWidth = canvasEl.width;
+      const canvasHeight = canvasEl.height;
+      const w = canvasWidth - margin * 2;
+      const h = canvasHeight - margin * 2;
       const maxDay = 60;
-      const maxCm = 100; // chart max = 100 cm
+      const maxCm = 100;
 
       function xForDay(day) {
         return margin + (day / maxDay) * w;
@@ -682,32 +659,27 @@
         return margin + (1 - ratio) * h;
       }
 
-      // Draw axes
       ctx.lineWidth = 1.5;
       ctx.strokeStyle = "#000";
       ctx.beginPath();
-
-      const xAxisY = canvasEl.height - margin;
+      const xAxisY = canvasHeight - margin;
       ctx.moveTo(margin, xAxisY);
-      ctx.lineTo(canvasEl.width - margin, xAxisY);
-
-      // Y-axis
+      ctx.lineTo(canvasWidth - margin, xAxisY);
       ctx.moveTo(margin, xAxisY);
       ctx.lineTo(margin, margin);
       ctx.stroke();
 
-      // X-axis label
       ctx.font = "14px sans-serif";
-      ctx.fillText("Days", canvasEl.width / 2 - 15, canvasEl.height - 5);
+      ctx.textAlign = "center";
+      ctx.fillText("Days", canvasWidth / 2 - 15, canvasHeight - 5);
 
-      // Y-axis label (rotated)
       ctx.save();
-      ctx.translate(10, canvasEl.height / 2);
+      ctx.translate(15, canvasHeight / 2);
       ctx.rotate(-Math.PI / 2);
+      ctx.textAlign = "center";
       ctx.fillText("Height (cm)", 0, 0);
       ctx.restore();
 
-      // X-axis ticks
       ctx.textAlign = "center";
       ctx.textBaseline = "top";
       for (let d = 0; d <= 60; d += 10) {
@@ -719,7 +691,6 @@
         ctx.fillText(d.toString(), x, xAxisY + 7);
       }
 
-      // Y-axis ticks
       ctx.textAlign = "right";
       ctx.textBaseline = "middle";
       for (let cm = 0; cm <= 100; cm += 20) {
@@ -731,19 +702,142 @@
         ctx.fillText(cm.toString(), margin - 7, y);
       }
 
-      // Plot data
+      if (dayHeights1.length >= 2) {
+        ctx.lineWidth = 2.5;
+        ctx.strokeStyle = "blue";
+        ctx.setLineDash([]);
+        ctx.beginPath();
+        ctx.moveTo(xForDay(dayHeights1[0].day), yForCm(dayHeights1[0].heightCm));
+        for (let i = 1; i < dayHeights1.length; i++) {
+          ctx.lineTo(xForDay(dayHeights1[i].day), yForCm(dayHeights1[i].heightCm));
+        }
+        ctx.stroke();
+      }
+
+      if (dayHeights2.length >= 2) {
+        const offset = 3;
+        ctx.lineWidth = 2.5;
+        ctx.strokeStyle = "green";
+        ctx.setLineDash([5, 3]);
+        ctx.beginPath();
+        ctx.moveTo(xForDay(dayHeights2[0].day), yForCm(dayHeights2[0].heightCm) - offset);
+        for (let i = 1; i < dayHeights2.length; i++) {
+          ctx.lineTo(xForDay(dayHeights2[i].day), yForCm(dayHeights2[i].heightCm) - offset);
+        }
+        ctx.stroke();
+        ctx.setLineDash([]);
+      }
+
+      const legendWidth = 120;
+      const legendHeight = 60;
+      const legendX = margin;
+      const legendY = margin;
+      ctx.fillStyle = "white";
+      ctx.fillRect(legendX, legendY, legendWidth, legendHeight);
+      ctx.strokeStyle = "#000";
+      ctx.strokeRect(legendX, legendY, legendWidth, legendHeight);
+      ctx.font = "12px sans-serif";
+      ctx.fillStyle = "black";
+      ctx.textBaseline = "middle";
       ctx.lineWidth = 2.5;
       ctx.strokeStyle = "blue";
+      ctx.setLineDash([]);
       ctx.beginPath();
-      const firstCm = dataArray[0].heightCm;
-      ctx.moveTo(xForDay(dataArray[0].day), yForCm(firstCm));
-
-      for (let i = 1; i < dataArray.length; i++) {
-        const d = dataArray[i];
-        ctx.lineTo(xForDay(d.day), yForCm(d.heightCm));
-      }
+      ctx.moveTo(legendX + 60, legendY + 15);
+      ctx.lineTo(legendX + 100, legendY + 15);
       ctx.stroke();
+      ctx.fillText("Plant 1", legendX + 50, legendY + 15);
+      ctx.lineWidth = 2.5;
+      ctx.strokeStyle = "green";
+      ctx.setLineDash([5, 3]);
+      ctx.beginPath();
+      ctx.moveTo(legendX + 60, legendY + 35);
+      ctx.lineTo(legendX + 100, legendY + 35);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.fillText("Plant 2", legendX + 50, legendY + 35);
     }
+
+    /* =======================
+       Graph Tooltip Logic
+    ======================= */
+    /* =======================
+       Graph Tooltip Logic
+    ======================= */
+    (function(){
+      const canvas = document.getElementById("combinedGraphCanvas");
+      const tooltip = document.getElementById("tooltip");
+      const threshold = 7; // pixels tolerance
+
+      canvas.addEventListener("mousemove", function(e) {
+        const rect = canvas.getBoundingClientRect();
+        const x = e.clientX - rect.left;
+        const y = e.clientY - rect.top;
+        const margin = 40;
+        const canvasWidth = canvas.width;
+        const canvasHeight = canvas.height;
+
+        // Only proceed if within the graph's drawing area.
+        if (x < margin || x > canvasWidth - margin || y < margin || y > canvasHeight - margin) {
+          tooltip.style.display = "none";
+          return;
+        }
+
+        // Helper functions (as used when drawing the graph)
+        function xForDay(day) {
+          return margin + (day / 60) * (canvasWidth - margin * 2);
+        }
+        function yForCm(cm) {
+          const maxCm = 100;
+          if (cm > maxCm) cm = maxCm;
+          return margin + (1 - (cm / maxCm)) * (canvasHeight - margin * 2);
+        }
+
+        let found = false;
+        let displayText = "";
+
+        // Check proximity against Plant 1 data points
+        for (let data of dayHeights1) {
+          const xVal = xForDay(data.day);
+          const yVal = yForCm(data.heightCm);
+          const dist = Math.sqrt((x - xVal) ** 2 + (y - yVal) ** 2);
+          if (dist < threshold) {
+            displayText = "Plant 1: Day " + data.day + ", Height: " + data.heightCm.toFixed(0) + " cm";
+            found = true;
+            break;
+          }
+        }
+
+        // If not near Plant 1, check Plant 2
+        if (!found) {
+          for (let data of dayHeights2) {
+            const xVal = xForDay(data.day);
+            const yVal = yForCm(data.heightCm);
+            const dist = Math.sqrt((x - xVal) ** 2 + (y - yVal) ** 2);
+            if (dist < threshold) {
+              displayText = "Plant 2: Day " + data.day + ", Height: " + data.heightCm.toFixed(0) + " cm";
+              found = true;
+              break;
+            }
+          }
+        }
+
+        if (!found) {
+          tooltip.style.display = "none";
+          return;
+        }
+
+        tooltip.textContent = displayText;
+        tooltip.style.left = (e.clientX + 10) + "px";
+        tooltip.style.top = (e.clientY + 10) + "px";
+        tooltip.style.display = "block";
+      });
+
+      canvas.addEventListener("mouseout", function() {
+        tooltip.style.display = "none";
+      });
+    })();
+
   </script>
 </body>
 </html>
