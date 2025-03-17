@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Module Drag & Drop with Lessons</title>
+  <style>
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+    }
+    .container {
+      display: flex;
+      height: 100vh;
+    }
+    /* Left panel: modules */
+    .modules-panel {
+      width: 20%;
+      background: #f0f0f0;
+      padding: 10px;
+      overflow-y: auto;
+      border-right: 1px solid #ccc;
+    }
+    .module {
+      background: #fff;
+      margin: 5px 0;
+      padding: 10px;
+      border: 1px solid #ccc;
+      text-align: center;
+      cursor: grab;
+      user-select: none;
+    }
+    /* Right panel: simulation area */
+    .simulation-panel {
+      flex: 1;
+      padding: 10px;
+      background: #e8e8e8;
+      overflow-y: auto;
+    }
+    /* Pathways arranged horizontally */
+    .pathway {
+      background: #fff;
+      border: 2px dashed #aaa;
+      min-height: 150px;
+      margin: 10px 0;
+      padding: 10px;
+      display: flex;
+      flex-direction: row;
+      gap: 10px;
+      align-items: flex-start;
+    }
+    .pathway.dragover {
+      border-color: #333;
+    }
+    .pathway-header {
+      font-weight: bold;
+      margin-bottom: 5px;
+    }
+    /* Each module clone gets its own wrapper */
+    .module-wrapper {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+    /* Lesson details styling */
+    .lessons {
+      background-color: #eef;
+      border: 1px solid #ccc;
+      padding: 5px;
+      margin-top: 5px;
+      font-size: 0.9em;
+      text-align: left;
+      width: 100%;
+    }
+    .lessons ul {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+    }
+    .lessons li {
+      margin-bottom: 3px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <!-- Left Panel: Modules -->
+    <div class="modules-panel" id="modulesPanel">
+      <h2>Modules</h2>
+      <!-- 20 modules will be dynamically added here -->
+    </div>
+    <!-- Right Panel: Simulation Area with five pathways -->
+    <div class="simulation-panel" id="simulationPanel">
+      <h2>Simulation Area</h2>
+      <div class="pathway" id="pathway1">
+        <div class="pathway-header">Pathway 1</div>
+      </div>
+      <div class="pathway" id="pathway2">
+        <div class="pathway-header">Pathway 2</div>
+      </div>
+      <div class="pathway" id="pathway3">
+        <div class="pathway-header">Pathway 3</div>
+      </div>
+      <div class="pathway" id="pathway4">
+        <div class="pathway-header">Pathway 4</div>
+      </div>
+      <div class="pathway" id="pathway5">
+        <div class="pathway-header">Pathway 5</div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Lesson data for modules 0 to 11.
+    const moduleLessons = {
+      0: [
+        { code: "Lesson 0A", description: "" }
+      ],
+      1: [
+        { code: "Lesson 1A", description: "Display name on micro:bit and OLED screen" },
+        { code: "Lesson 1B", description: "Show different colors on LED strip" },
+        { code: "Lesson 1C", description: "Show data collected from the sensors" }
+      ],
+      2: [
+        { code: "Lesson 2A", description: "Temp/humidity" },
+        { code: "Lesson 2B", description: "Light" },
+        { code: "Lesson 2C", description: "Airflow" }
+      ],
+      3: [
+        { code: "Lesson 3A", description: "Building the frames" }
+      ],
+      4: [
+        { code: "Lesson 4A", description: "Micro:bit/shield" },
+        { code: "Lesson 4B", description: "Sensors, actuators" }
+      ],
+      5: [
+        { code: "Lesson 5A", description: "How to get relay boxes work" },
+        { code: "Lesson 5B", description: "More about the circuitry" },
+        { code: "Lesson 5C", description: "" }
+      ],
+      6: [
+        { code: "Lesson 6A", description: "Balancing and Tradeoff; iterative design" },
+        { code: "Lesson 6B", description: "Present a challenge and make plans" },
+        { code: "Lesson 6C", description: "Break into smaller tasks (design, test, revise)" }
+      ],
+      7: [
+        { code: "Lesson 7A", description: "Coding for data logging and export the data" },
+        { code: "Lesson 7B", description: "Using Google sheets and CODAP to visualize" },
+        { code: "Lesson 7C", description: "Finding patterns in the data for various variables in the greenhouse" },
+        { code: "Lesson 7D", description: "Finding correlation between multiple variables" }
+      ],
+      8: [
+        { code: "Lesson 8A", description: "Data Driven Challenges / Decision making (1)" },
+        { code: "Lesson 8B", description: "Data Driven Challenges / Decision making (2)" }
+      ],
+      9: [
+        { code: "Lesson 9A", description: "What is a science experiment? Control variables, hypothesis, things you are trying to measure, etc." },
+        { code: "Lesson 9B", description: "In the context of smart greenhouse: What is your hypothesis? What kind of variables you want to control?" },
+        { code: "Lesson 9C", description: "Design your experiments" },
+        { code: "Lesson 9D", description: "Data collection (manually) to support or reject your hypothesis; or choose module 7 to collect data" }
+      ],
+      10: [
+        { code: "Lesson 10A", description: "Psuedocode" },
+        { code: "Lesson 10B", description: "Algorithm" },
+        { code: "Lesson 10C", description: "Boolean Logic or Conditionals" }
+      ],
+      11: [
+        { code: "Lesson 11A", description: "Programmers always debug or problem solver" },
+        { code: "Lesson 11B", description: "Reading flow-chart, translate flow-chart to code" },
+        { code: "Lesson 11C", description: "Using flow-chart to debug" }
+      ]
+    };
+
+    // Tooltip descriptions for modules 0 to 11.
+    const moduleDescriptions = [
+      "Code sense",
+      "Foundational coding",
+      "Plant science",
+      "Building the Greenhouse",
+      "Attach the electronincs to the Greenhouse",
+      "Relays",
+      "Engineering Design",
+      "Data Logging and Data Visualization",
+      "Data analysis",
+      "Scientific experiment design",
+      "Introduction to Algorithms",
+      "Introduction to Debugging"
+    ];
+
+    // Create 20 draggable modules in the left panel.
+    const modulesPanel = document.getElementById('modulesPanel');
+    for (let i = 0; i < 20; i++) {
+      const moduleDiv = document.createElement('div');
+      moduleDiv.className = 'module';
+      moduleDiv.id = 'module-' + i;
+      moduleDiv.textContent = 'Module ' + i;
+      // Set a data attribute for module index.
+      moduleDiv.setAttribute('data-module-index', i);
+      // Set tooltip.
+      if (i < moduleDescriptions.length) {
+        moduleDiv.title = moduleDescriptions[i];
+      } else {
+        moduleDiv.title = 'Module ' + i;
+      }
+      moduleDiv.draggable = true;
+
+      // Set dragstart event.
+      moduleDiv.addEventListener('dragstart', (e) => {
+        e.dataTransfer.setData('text/plain', moduleDiv.id);
+      });
+
+      modulesPanel.appendChild(moduleDiv);
+    }
+
+    // Setup drag-and-drop for all five pathways.
+    const pathways = document.querySelectorAll('.pathway');
+    pathways.forEach(pathway => {
+      pathway.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        pathway.classList.add('dragover');
+      });
+      pathway.addEventListener('dragleave', (e) => {
+        pathway.classList.remove('dragover');
+      });
+      pathway.addEventListener('drop', (e) => {
+        e.preventDefault();
+        pathway.classList.remove('dragover');
+        const moduleId = e.dataTransfer.getData('text/plain');
+        const moduleEl = document.getElementById(moduleId);
+        if (moduleEl) {
+          // Create a wrapper so that the module and its lessons are grouped.
+          const wrapper = document.createElement('div');
+          wrapper.className = 'module-wrapper';
+          // Create a clone of the module.
+          const clone = moduleEl.cloneNode(true);
+          clone.setAttribute('data-clone', 'true');
+          clone.id = moduleId + '-' + new Date().getTime();
+          clone.draggable = true;
+          clone.addEventListener('dragstart', (e) => {
+            e.dataTransfer.setData('text/plain', clone.id);
+          });
+          // On click, toggle the lessons list.
+          clone.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const moduleIndex = clone.getAttribute('data-module-index');
+            let lessonsDiv = wrapper.querySelector('.lessons');
+            if (lessonsDiv) {
+              lessonsDiv.remove();
+            } else {
+              lessonsDiv = document.createElement('div');
+              lessonsDiv.className = 'lessons';
+              const lessonsData = moduleLessons[moduleIndex];
+              if (lessonsData && lessonsData.length > 0) {
+                const ul = document.createElement('ul');
+                lessonsData.forEach(lesson => {
+                  const li = document.createElement('li');
+                  li.textContent = lesson.code + (lesson.description ? ": " + lesson.description : "");
+                  ul.appendChild(li);
+                });
+                lessonsDiv.appendChild(ul);
+              } else {
+                lessonsDiv.textContent = "No lessons available.";
+              }
+              wrapper.appendChild(lessonsDiv);
+            }
+          });
+          // Append the clone to the wrapper, then add to the pathway.
+          wrapper.appendChild(clone);
+          pathway.appendChild(wrapper);
+        }
+      });
+    });
+
+    // Setup the left panel as a drop zone for deletion.
+    modulesPanel.addEventListener('dragover', (e) => {
+      e.preventDefault();
+    });
+    modulesPanel.addEventListener('drop', (e) => {
+      e.preventDefault();
+      const moduleId = e.dataTransfer.getData('text/plain');
+      const moduleEl = document.getElementById(moduleId);
+      if (moduleEl && moduleEl.getAttribute('data-clone') === 'true') {
+        // Remove the entire module-wrapper if it exists.
+        if (moduleEl.parentElement.classList.contains('module-wrapper')) {
+          moduleEl.parentElement.remove();
+        } else {
+          moduleEl.remove();
+        }
+      }
+    });
+  </script>
+</body>
+</html>
