@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Module Drag & Drop with Lessons</title>
+  <title>Module Drag & Drop with Preloaded Pathways and Lessons</title>
   <style>
     body {
       margin: 0;
@@ -116,9 +116,9 @@
         { code: "Lesson 0A", description: "" }
       ],
       1: [
-        { code: "Lesson 1A", description: "Display name on micro:bit and OLED screen" },
-        { code: "Lesson 1B", description: "Show different colors on LED strip" },
-        { code: "Lesson 1C", description: "Show data collected from the sensors" }
+        { code: "Lesson 1A", description: "Coding micro:bit to display name on micro:bit and OLED screen" },
+        { code: "Lesson 1B", description: "Coding micro:bit to display name on micro:bit to show different colors on LED strip" },
+        { code: "Lesson 1C", description: "Coding micro:bit to get and show data with the AHT and Light sensors" }
       ],
       2: [
         { code: "Lesson 2A", description: "Temp/humidity" },
@@ -193,7 +193,6 @@
       moduleDiv.className = 'module';
       moduleDiv.id = 'module-' + i;
       moduleDiv.textContent = 'Module ' + i;
-      // Set a data attribute for module index.
       moduleDiv.setAttribute('data-module-index', i);
       // Set tooltip.
       if (i < moduleDescriptions.length) {
@@ -202,13 +201,60 @@
         moduleDiv.title = 'Module ' + i;
       }
       moduleDiv.draggable = true;
-
-      // Set dragstart event.
       moduleDiv.addEventListener('dragstart', (e) => {
         e.dataTransfer.setData('text/plain', moduleDiv.id);
       });
-
       modulesPanel.appendChild(moduleDiv);
+    }
+
+    // Helper function: creates a cloned module wrapped in a container.
+    function cloneModule(moduleEl) {
+      const wrapper = document.createElement('div');
+      wrapper.className = 'module-wrapper';
+      const clone = moduleEl.cloneNode(true);
+      clone.setAttribute('data-clone', 'true');
+      // Assign a unique ID.
+      clone.id = moduleEl.id + '-' + new Date().getTime();
+      clone.draggable = true;
+      clone.addEventListener('dragstart', (e) => {
+        e.dataTransfer.setData('text/plain', clone.id);
+      });
+      // Toggle lessons list on click.
+      clone.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const modIndex = clone.getAttribute('data-module-index');
+        let lessonsDiv = wrapper.querySelector('.lessons');
+        if (lessonsDiv) {
+          lessonsDiv.remove();
+        } else {
+          lessonsDiv = document.createElement('div');
+          lessonsDiv.className = 'lessons';
+          const lessonsData = moduleLessons[modIndex];
+          if (lessonsData && lessonsData.length > 0) {
+            const ul = document.createElement('ul');
+            lessonsData.forEach(lesson => {
+              const li = document.createElement('li');
+              li.textContent = lesson.code + (lesson.description ? ": " + lesson.description : "");
+              ul.appendChild(li);
+            });
+            lessonsDiv.appendChild(ul);
+          } else {
+            lessonsDiv.textContent = "No lessons available.";
+          }
+          wrapper.appendChild(lessonsDiv);
+        }
+      });
+      wrapper.appendChild(clone);
+      return wrapper;
+    }
+
+    // Function to add a module (by index) to a given pathway.
+    function addModuleToPathway(moduleIndex, pathway) {
+      const moduleEl = document.getElementById('module-' + moduleIndex);
+      if (moduleEl) {
+        const wrapper = cloneModule(moduleEl);
+        pathway.appendChild(wrapper);
+      }
     }
 
     // Setup drag-and-drop for all five pathways.
@@ -227,50 +273,13 @@
         const moduleId = e.dataTransfer.getData('text/plain');
         const moduleEl = document.getElementById(moduleId);
         if (moduleEl) {
-          // Create a wrapper so that the module and its lessons are grouped.
-          const wrapper = document.createElement('div');
-          wrapper.className = 'module-wrapper';
-          // Create a clone of the module.
-          const clone = moduleEl.cloneNode(true);
-          clone.setAttribute('data-clone', 'true');
-          clone.id = moduleId + '-' + new Date().getTime();
-          clone.draggable = true;
-          clone.addEventListener('dragstart', (e) => {
-            e.dataTransfer.setData('text/plain', clone.id);
-          });
-          // On click, toggle the lessons list.
-          clone.addEventListener('click', (e) => {
-            e.stopPropagation();
-            const moduleIndex = clone.getAttribute('data-module-index');
-            let lessonsDiv = wrapper.querySelector('.lessons');
-            if (lessonsDiv) {
-              lessonsDiv.remove();
-            } else {
-              lessonsDiv = document.createElement('div');
-              lessonsDiv.className = 'lessons';
-              const lessonsData = moduleLessons[moduleIndex];
-              if (lessonsData && lessonsData.length > 0) {
-                const ul = document.createElement('ul');
-                lessonsData.forEach(lesson => {
-                  const li = document.createElement('li');
-                  li.textContent = lesson.code + (lesson.description ? ": " + lesson.description : "");
-                  ul.appendChild(li);
-                });
-                lessonsDiv.appendChild(ul);
-              } else {
-                lessonsDiv.textContent = "No lessons available.";
-              }
-              wrapper.appendChild(lessonsDiv);
-            }
-          });
-          // Append the clone to the wrapper, then add to the pathway.
-          wrapper.appendChild(clone);
+          const wrapper = cloneModule(moduleEl);
           pathway.appendChild(wrapper);
         }
       });
     });
 
-    // Setup the left panel as a drop zone for deletion.
+    // Enable deletion: dragging a cloned module back to the left panel removes it.
     modulesPanel.addEventListener('dragover', (e) => {
       e.preventDefault();
     });
@@ -279,7 +288,6 @@
       const moduleId = e.dataTransfer.getData('text/plain');
       const moduleEl = document.getElementById(moduleId);
       if (moduleEl && moduleEl.getAttribute('data-clone') === 'true') {
-        // Remove the entire module-wrapper if it exists.
         if (moduleEl.parentElement.classList.contains('module-wrapper')) {
           moduleEl.parentElement.remove();
         } else {
@@ -287,6 +295,25 @@
         }
       }
     });
+
+    // Preload modules into pathways using a mapping.
+    // In this example:
+    // - Pathway 1 gets modules 0 to 4
+    // - Pathway 2 gets modules 7 to 11
+    const preloadMapping = {
+      "pathway1": [0, 1, 2, 3, 4],
+      "pathway2": [0, 7, 8, 9, 10, 11],
+      "pathway3": [0, 3, 12, 13],
+      "pathway4": [0, 1, 7, 8],
+      "pathway5": [0, 1, 2, 6, 7]
+    };
+
+    for (const pathwayId in preloadMapping) {
+      const pathway = document.getElementById(pathwayId);
+      preloadMapping[pathwayId].forEach(moduleIndex => {
+        addModuleToPathway(moduleIndex, pathway);
+      });
+    }
   </script>
 </body>
 </html>
