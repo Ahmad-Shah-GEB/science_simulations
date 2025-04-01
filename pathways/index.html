@@ -113,24 +113,26 @@
     // Lesson data for modules 0 to 11.
     const moduleLessons = {
       0: [
-        { code: "Lesson 0A", description: "" }
+        { code: "Lesson 0A", description: "Develop a sense of how block-based code and micro:bit works" },
+        { code: "Lesson 0B", description: "Develop a sense of how sensors work (and data logging and display with OLED)"},
+        { code: "Lesson 0C", description: "Develop a sense of how automation/relay works"}
       ],
       1: [
         { code: "Lesson 1A", description: "Coding micro:bit to display name on micro:bit and OLED screen" },
-        { code: "Lesson 1B", description: "Coding micro:bit to display name on micro:bit to show different colors on LED strip" },
+        { code: "Lesson 1B", description: "Coding micro:bit to work with LED strip and show different colors or patterns on LED strip" },
         { code: "Lesson 1C", description: "Coding micro:bit to get and show data with the AHT and Light sensors" }
       ],
       2: [
-        { code: "Lesson 2A", description: "Temp/humidity" },
-        { code: "Lesson 2B", description: "Light" },
-        { code: "Lesson 2C", description: "Airflow" }
+        { code: "Lesson 2A", description: "More about the science about how Temp/humidity impacts plant growth + How we can control it using code" },
+        { code: "Lesson 2B", description: "How Light impacts plants' growth + How we can control light using code" },
+        { code: "Lesson 2C", description: "How Airflow impacts humidity and thus plant growth + How we can control the airflow using code" }
       ],
       3: [
         { code: "Lesson 3A", description: "Building the frames" }
       ],
       4: [
-        { code: "Lesson 4A", description: "Micro:bit/shield" },
-        { code: "Lesson 4B", description: "Sensors, actuators" }
+        { code: "Lesson 4A", description: "Attach Micro:bit and shield" },
+        { code: "Lesson 4B", description: "Attach Sensorsa and actuators" }
       ],
       5: [
         { code: "Lesson 5A", description: "How to get relay boxes work" },
@@ -183,7 +185,8 @@
       "Data analysis",
       "Scientific experiment design",
       "Introduction to Algorithms",
-      "Introduction to Debugging"
+      "Introduction to Debugging",
+      "Variables and Functions"
     ];
 
     // Create 20 draggable modules in the left panel.
@@ -192,7 +195,12 @@
       const moduleDiv = document.createElement('div');
       moduleDiv.className = 'module';
       moduleDiv.id = 'module-' + i;
-      moduleDiv.textContent = 'Module ' + i;
+      if (i < moduleDescriptions.length) {
+        moduleDiv.textContent = 'Module ' + i + ' (' + moduleDescriptions[i] + ')';
+      } else {
+        moduleDiv.textContent = 'Module ' + i;
+      }
+
       moduleDiv.setAttribute('data-module-index', i);
       // Set tooltip.
       if (i < moduleDescriptions.length) {
@@ -216,9 +224,13 @@
       // Assign a unique ID.
       clone.id = moduleEl.id + '-' + new Date().getTime();
       clone.draggable = true;
+      // Override the text content so that the clone only shows "Module X" (without the description)
+      clone.textContent = 'Module ' + moduleEl.getAttribute('data-module-index');
+
       clone.addEventListener('dragstart', (e) => {
         e.dataTransfer.setData('text/plain', clone.id);
       });
+
       // Toggle lessons list on click.
       clone.addEventListener('click', (e) => {
         e.stopPropagation();
