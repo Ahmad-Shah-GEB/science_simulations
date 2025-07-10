@@ -54,7 +54,7 @@
     /* Plant 1 pot */
     .pot-only {
       width: 150px;
-      height: 360px;
+      height: 370px;
       background-color: brown;
       position: relative;
       overflow: hidden;
@@ -62,7 +62,7 @@
     /* Plant 2 pot */
     .pot {
       width: 150px;
-      height: 360px;
+      height: 370px;
       background-color: brown;
       position: relative;
       overflow: hidden;
@@ -228,6 +228,7 @@
     <button onclick="simulateGrowth()">Simulate Growth</button>
     <button onclick="resetSimulation()">Reset</button>
     <button id="pauseResumeBtn" onclick="togglePause()">Pause</button>
+    <button id="toggleMoodBtn" onclick="toggleMood()">Show Plants' Mood</button>
   </div>
 
   <!-- Simulation Container: Pots, tubs, and bottom controls -->
@@ -265,7 +266,7 @@
       <div class="speed-controls">
         <button onclick="decreaseSpeed()">Slower Simulation</button>
         <button onclick="increaseSpeed()">Faster Simulation</button>
-        <span id="speedDisplay">Speed: 1x</span>
+        <span id="speedDisplay">Speed: 4x</span>
       </div>
       <div class="time" id="time">Day: 0</div>
       <div class="height-records">
@@ -297,7 +298,8 @@
     let growthFn2 = null;
     let cancelGrowth1 = false;
     let cancelGrowth2 = false;
-    let speedMultiplier = 1;
+    let speedMultiplier = 4;
+    let showMood = false;
 
     // Store day-by-day heights (in cm) for the graph
     const dayHeights1 = [];
@@ -325,16 +327,23 @@
     }
     function lightStress(l) {
       if (l >= 8 && l <= 16) return 1;
-      let distance = (l < 8) ? (8 - l) : (l - 16);
-      return Math.max(1 - distance * 0.2, 0);
+
+      if (l < 8) {
+        let d = 8 - l;
+        return Math.max(1 - d * 0.25, 0); // moderate penalty
+      } else {
+        let d = l - 16;
+        return Math.max(1 - d * 0.75, 0);  // harsher penalty
+      }
     }
+
 
     /* =======================
        Speed Controls
     ======================= */
     function increaseSpeed() {
       speedMultiplier *= 2;
-      if (speedMultiplier > 4) speedMultiplier = 4;
+      if (speedMultiplier > 8) speedMultiplier = 8;
       document.getElementById('speedDisplay').textContent = "Speed: " + speedMultiplier + "x";
     }
     function decreaseSpeed() {
@@ -346,6 +355,21 @@
     /* =======================
        simulateGrowth
     ======================= */
+    function toggleMood() {
+      showMood = !showMood;
+      const moodBtn = document.getElementById("toggleMoodBtn");
+      moodBtn.textContent = showMood ? "Hide Plants' Mood" : "Show Plants' Mood";
+
+      // Immediately update visibility of mood faces
+      document.getElementById("face1").style.display = showMood ? "block" : "none";
+      document.getElementById("face2").style.display = showMood ? "block" : "none";
+    }
+
+
+
+
+
+
     function simulateGrowth() {
       // Read slider inputs for both plants
       const temp1 = document.getElementById('temperature1').value;
@@ -383,6 +407,16 @@
       let nextLeafSpawn = LEAF_THRESHOLD;
       const leafSpawnGap = 35;
       const pot = plant.parentElement;
+
+      const flowerImg = document.createElement('img');
+      flowerImg.src = 'flower.png';
+      flowerImg.style.position = 'absolute';
+      flowerImg.style.bottom = '0px';
+      flowerImg.style.left = '50%';
+      flowerImg.style.transform = 'translateX(-50%)';
+      flowerImg.style.display = 'none';  // hidden by default
+      flowerImg.style.pointerEvents = 'none';
+      pot.appendChild(flowerImg);
 
       function grow() {
         // Stop growth if light is 0 or less.
@@ -422,9 +456,19 @@
         }
 
         // Calculate effective light for stem thickness (minimum 3 hours)
-        let effectiveLightForWidth = Math.max(currentLight, 3);
-        let lightFactor = (effectiveLightForWidth >= 8) ? 1 : (effectiveLightForWidth / 8);
+        // For width, only start penalizing below 8
+        let lightFactor;
+        if (currentLight >= 8) {
+          lightFactor = 1;
+        } else if (currentLight >= 6) {
+          lightFactor = 0.8;
+        } else if (currentLight >= 4) {
+          lightFactor = 0.6;
+        } else {
+          lightFactor = 0.4;
+        }
         plant.style.width = (20 * lightFactor) + 'px';
+
 
         // For growth rate, ignore light so the plant can grow tall.
         let effectiveTemp = currentTemp - currentFan * 0.5;
@@ -474,11 +518,21 @@
         });
 
         // Update height display (px -> mm -> cm and inches)
-        const MAX_HEIGHT_CM = 100; // cap maximum height
-        const heightInMM = height * PX_TO_MM;
-        if (heightInMM > MAX_HEIGHT_CM) {
-          height = MAX_HEIGHT_CM / PX_TO_MM;
+        const maxHeightLowLight = 90; // cm
+        const maxHeightNormal = 100; // cm
+
+        // Calculate current height in mm and cm
+        let heightInMM = height * PX_TO_MM;
+        let heightInCM = heightInMM;  // For clarity
+
+        // Apply realistic max height limit
+        let maxAllowedHeight = currentLight < 6 ? maxHeightLowLight : maxHeightNormal;
+        if (heightInCM > maxAllowedHeight) {
+          height = maxAllowedHeight / PX_TO_MM;
+          heightInCM = maxAllowedHeight;
+          heightInMM = maxAllowedHeight * 10; // in mm
         }
+
         const heightInInches = heightInMM * 0.393701;
         document.getElementById(displayId).textContent =
           heightInMM.toFixed(0) + ' cm (' + heightInInches.toFixed(0) + ' in)';
@@ -487,6 +541,57 @@
         let happiness = (tempStress(effectiveTemp) + humidityStress(effectiveHum) + lightStress(currentLight)) / 3;
         updateFace(plantNumber, happiness);
         // --- End Face Update ---
+
+        // --- Organic Flower Bloom Logic ---
+
+        // Conditions: plant must be happy AND stem must be thick enough (lightFactor)
+        let bloomAllowed = true;
+        let minBloomHeight;
+
+        if (currentLight > 16 || currentLight < 2) {
+          bloomAllowed = false;  // 🌞 too much or 🌑 too little light
+        } else if (currentLight < 4) {
+          minBloomHeight = 85;
+        } else if (currentLight < 6) {
+          minBloomHeight = 80;
+        } else if (happiness < 0.95) {
+          minBloomHeight = 75;
+        } else {
+          minBloomHeight = 60;
+        }
+
+
+        const maxBloomHeight = 90;
+
+        if (bloomAllowed && heightInMM >= minBloomHeight) {
+          flowerImg.style.display = 'block';
+
+          // Bloom progress from minBloomHeight → maxBloomHeight
+          // Map currentLight to bloom growth span (cm)
+          const idealBloomSpan = 30;
+          const minBloomSpan = 3;
+
+          const lightRatio = Math.min(currentLight / 8, 1);
+          const bloomSpan = minBloomSpan + (idealBloomSpan - minBloomSpan) * lightRatio;
+
+          const rawProgress = Math.min((heightInMM - minBloomHeight) / bloomSpan, 1);
+          const bloomProgress = rawProgress * Math.pow(lightRatio, 5);
+  // Slow flower growth under low light
+
+          const baseSize = 5;
+          const maxSize = 45;
+          const scaledSize = baseSize + bloomProgress * (maxSize - baseSize);
+          const finalSize = scaledSize;  // Do NOT multiply again by lightSizeFactor
+
+          flowerImg.style.width = finalSize + 'px';
+          flowerImg.style.height = 'auto';
+          flowerImg.style.bottom = (height - 5) + 'px';
+          flowerImg.style.transform = `translateX(-50%) scale(${0.8 + bloomProgress * 0.4})`;
+
+        } else {
+          flowerImg.style.display = 'none';
+        }
+
 
         // Continue growth until day 60
         if (day < 60) {
@@ -509,7 +614,9 @@
 
     // Function to update the face image based on happiness value
     function updateFace(plantNumber, happiness) {
-      let faceImg = document.getElementById('face' + plantNumber);
+      const faceImg = document.getElementById('face' + plantNumber);
+      faceImg.style.display = showMood ? 'block' : 'none';
+
       if (happiness >= 0.9) {
         faceImg.src = 'smile.png';
       } else if (happiness >= 0.7) {
@@ -575,6 +682,12 @@
 
       document.querySelectorAll('.pot, .pot-only').forEach(pot => {
         pot.querySelectorAll('.leaf').forEach(leaf => pot.removeChild(leaf));
+
+      const flower = pot.querySelector('img[src="flower.png"]');
+      if (flower) {
+        pot.removeChild(flower);
+      }
+
       });
 
       const initMM = 20 * PX_TO_MM;
@@ -758,6 +871,11 @@
       ctx.fillText("Plant 2", legendX + 50, legendY + 35);
     }
 
+
+    window.addEventListener("DOMContentLoaded", () => {
+      document.getElementById("face1").style.display = "none";
+      document.getElementById("face2").style.display = "none";
+    });
     /* =======================
        Graph Tooltip Logic
     ======================= */
