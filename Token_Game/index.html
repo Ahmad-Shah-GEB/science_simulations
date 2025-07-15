@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Embedding Bias Simulator</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+    }
+    .container {
+      display: flex;
+      justify-content: space-between;
+    }
+
+
+
+
+    .data-set {
+      width: 20%;
+      padding: 10px;
+      border: 1px solid #ccc;
+    }
+    .training-area {
+        width: 450px;
+        height: 450px;  /* increased height to fit box */
+        position: relative;
+        border: 1px solid #000;
+        flex-shrink: 0;
+        box-sizing: border-box;
+
+    }
+    .token {
+      position: absolute;
+      padding: 5px 8px;
+      background: lightblue;
+      border-radius: 5px;
+      text-align: center;
+    }
+    .sentence {
+      background: #f0f0f0;
+      padding: 5px;
+      margin: 5px;
+      cursor: grab;
+      border: 1px solid #aaa;
+    }
+  </style>
+</head>
+<body>
+  <h2>Token Embedding Bias Visualizer</h2>
+  <div class="container">
+    <div class="data-set" id="dataSet1">
+      <h4>Set 1: Cats are good</h4>
+      <div class="sentence" draggable="true" data-token1="cat" data-token2="good">Cats are good</div>
+      <div class="sentence" draggable="true" data-token1="cat" data-token2="good">Cats are very good</div>
+      <div class="sentence" draggable="true" data-token1="cat" data-token2="good">Cats are pretty good</div>
+      <div class="sentence" draggable="true" data-token1="cat" data-token2="good">Cats are really nice</div>
+      <div class="sentence" draggable="true" data-token1="cat" data-token2="good">Cats are great</div>
+    </div>
+
+
+    <div class="data-set" id="dataSet3">
+      <h4>Set 2: Cats are bad</h4>
+      <div class="sentence" draggable="true" data-token1="cat" data-token2="bad">Cats are bad</div>
+      <div class="sentence" draggable="true" data-token1="cat" data-token2="bad">Cats are very bad</div>
+      <div class="sentence" draggable="true" data-token1="cat" data-token2="bad">Cats are not that good</div>
+      <div class="sentence" draggable="true" data-token1="cat" data-token2="bad">Cats are really not nice</div>
+      <div class="sentence" draggable="true" data-token1="cat" data-token2="bad">Cats are not great</div>
+    </div>
+
+    <div style="display: flex; flex-direction: column;">
+        <div class="training-area" id="trainingArea">
+          <div class="token" id="cat" style="top: 100px; left: 100px;">cat</div>
+          <div class="token" id="dog" style="top: 300px; left: 100px;">dog</div>
+          <div class="token" id="good" style="top: 100px; left: 300px;">good</div>
+          <div class="token" id="bad" style="top: 300px; left: 300px;">bad</div>
+        </div>
+
+        <div id="predictionBox" style="
+            width: 450px;
+            background: #f9f9f9;
+            padding: 10px;
+            box-sizing: border-box;
+            border: 1px solid #000;
+            margin-top: 5px;">
+            <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+                <div>
+                    <div style="margin-bottom: 5px;">
+                        Cats are <span id="catPrediction">______</span>
+                        <button onclick="predict('cat')">Switch for Predict</button>
+                    </div>
+                    <div>
+                        Dogs are <span id="dogPrediction">______</span>
+                        <button onclick="predict('dog')">Switch for Predict</button>
+                    </div>
+                </div>
+                <div>
+                    <button onclick="resetPositions()">Reset</button>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <div class="data-set" id="dataSet2">
+      <h4>Set 3: Dogs are good</h4>
+      <div class="sentence" draggable="true" data-token1="dog" data-token2="good">Dogs are good</div>
+      <div class="sentence" draggable="true" data-token1="dog" data-token2="good">Dogs are really good</div>
+      <div class="sentence" draggable="true" data-token1="dog" data-token2="good">Dogs are pretty good</div>
+      <div class="sentence" draggable="true" data-token1="dog" data-token2="good">Dogs are really nice</div>
+      <div class="sentence" draggable="true" data-token1="dog" data-token2="good">Dogs are great</div>
+    </div>
+
+
+
+    <div class="data-set" id="dataSet4">
+      <h4>Set 4: Dogs are bad</h4>
+      <div class="sentence" draggable="true" data-token1="dog" data-token2="bad">Dogs are bad</div>
+      <div class="sentence" draggable="true" data-token1="dog" data-token2="bad">Dogs are very bad</div>
+      <div class="sentence" draggable="true" data-token1="dog" data-token2="bad">Dogs are not that good</div>
+      <div class="sentence" draggable="true" data-token1="dog" data-token2="bad">Dogs are really not nice</div>
+      <div class="sentence" draggable="true" data-token1="dog" data-token2="bad">Dogs are not great</div>
+    </div>
+  </div>
+
+  <script>
+    const trainingArea = document.getElementById('trainingArea');
+    const tokens = {
+        cat: {el: document.getElementById('cat'), x: 100, y: 200},
+        dog: {el: document.getElementById('dog'), x: 300, y: 200},
+        good: {el: document.getElementById('good'), x: 200, y: 100},
+        bad: {el: document.getElementById('bad'), x: 200, y: 300}
+    };
+
+    // Set initial positions visually
+    Object.values(tokens).forEach(token => {
+        token.el.style.left = token.x + 'px';
+        token.el.style.top = token.y + 'px';
+        updateTooltip(token);
+    });
+
+
+    function updateTooltip(token) {
+        token.el.title = `x: ${Math.round(token.x)}, y: ${Math.round(token.y)}`;
+    }
+
+
+    function moveTokensTowardEachOther(tokenA, tokenB, step = 2.5) {
+      let dx = tokenB.x - tokenA.x;
+      let dy = tokenB.y - tokenA.y;
+      let dist = Math.sqrt(dx * dx + dy * dy);
+      if (dist === 0) return;
+      let moveX = (dx / dist) * step;
+      let moveY = (dy / dist) * step;
+      tokenA.x += moveX;
+      tokenA.y += moveY;
+      tokenB.x -= moveX;
+      tokenB.y -= moveY;
+      tokenA.el.style.left = tokenA.x + 'px';
+      tokenA.el.style.top = tokenA.y + 'px';
+      updateTooltip(tokenA);
+
+      tokenB.el.style.left = tokenB.x + 'px';
+      tokenB.el.style.top = tokenB.y + 'px';
+      updateTooltip(tokenB);
+
+    }
+
+    document.querySelectorAll('.sentence').forEach(sentence => {
+      sentence.addEventListener('dragstart', (e) => {
+        e.dataTransfer.setData('text/plain', JSON.stringify({
+          token1: sentence.dataset.token1,
+          token2: sentence.dataset.token2
+        }));
+      });
+    });
+
+    trainingArea.addEventListener('dragover', e => {
+      e.preventDefault();
+    });
+
+    trainingArea.addEventListener('drop', e => {
+      const data = JSON.parse(e.dataTransfer.getData('text/plain'));
+      const token1 = tokens[data.token1];
+      const token2 = tokens[data.token2];
+
+      moveTokensTowardEachOther(token1, token2);
+    });
+
+    function distance(a, b) {
+        let dx = a.x - b.x;
+        let dy = a.y - b.y;
+        return Math.sqrt(dx * dx + dy * dy);
+    }
+
+    function predict(tokenName) {
+        const token = tokens[tokenName];
+        const distToGood = distance(token, tokens['good']);
+        const distToBad = distance(token, tokens['bad']);
+
+        let prediction;
+        if (distToGood < distToBad) {
+            prediction = 'good';
+        } else if (distToBad < distToGood) {
+            prediction = 'bad';
+        } else {
+            // Randomly pick 'good' or 'bad' when distances are equal
+            prediction = Math.random() < 0.5 ? 'good' : 'bad';
+        }
+
+        if (tokenName === 'cat') {
+            document.getElementById('catPrediction').textContent = prediction;
+        } else if (tokenName === 'dog') {
+            document.getElementById('dogPrediction').textContent = prediction;
+        }
+    }
+
+
+    function resetPositions() {
+        tokens.cat.x = 100;
+        tokens.cat.y = 200;
+        tokens.dog.x = 300;
+        tokens.dog.y = 200;
+        tokens.good.x = 200;
+        tokens.good.y = 100;
+        tokens.bad.x = 200;
+        tokens.bad.y = 300;
+
+        Object.values(tokens).forEach(token => {
+            token.el.style.left = token.x + 'px';
+            token.el.style.top = token.y + 'px';
+            updateTooltip(token);
+        });
+
+        document.getElementById('catPrediction').textContent = '______';
+        document.getElementById('dogPrediction').textContent = '______';
+    }
+
+
+  </script>
+</body>
+</html>
