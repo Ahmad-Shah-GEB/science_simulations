@@ -2,16 +2,27 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>4-Way Road Junction with Random Cars</title>
+    <title>4-Way Road Junction with Collision and Time Counter</title>
     <style>
         body {
             margin: 0;
+            padding: 0;
             height: 100vh;
-            background-color: #6da446;
-            display: flex;
-            justify-content: center;
-            align-items: center;
+            background-color: #ebe7a1;
             overflow: hidden;
+        }
+
+        .status-bar {
+            position: fixed;
+            top: 10px;
+            left: 10px;
+            font-size: 20px;
+            font-family: Arial, sans-serif;
+            color: black;
+            z-index: 10000;
+            background-color: rgba(255, 255, 255, 0.8);
+            padding: 5px 10px;
+            border-radius: 5px;
         }
 
         .junction {
@@ -22,11 +33,11 @@
 
         .road-horizontal, .road-vertical {
             position: absolute;
-            background-color: #373a35;
+            background-color: black;
         }
 
         .road-horizontal {
-            width: 800px;
+            width: 1400px;
             height: 100px;
             top: 50%;
             left: 50%;
@@ -34,192 +45,184 @@
         }
 
         .road-vertical {
-            height: 800px;
+            height: 1000px;
             width: 100px;
             top: 50%;
             left: 50%;
             transform: translate(-50%, -50%);
         }
 
-        .lane-marking {
-            position: absolute;
-            background-color: white;
-        }
-
-        .horizontal .lane-marking {
-            width: 30px;
-            height: 10px;
+        .lane-horizontal {
             top: 50%;
+            height: 5px;
+            width: 40px;
+            background-color: white;
+            position: absolute;
             transform: translateY(-50%);
         }
 
-        .vertical .lane-marking {
-            width: 10px;
-            height: 30px;
+        .lane-vertical {
             left: 50%;
+            width: 5px;
+            height: 40px;
+            background-color: white;
+            position: absolute;
             transform: translateX(-50%);
         }
 
-        .horizontal .lane-marking:nth-child(1) { left: 10%; }
-        .horizontal .lane-marking:nth-child(2) { left: 30%; }
-        .horizontal .lane-marking:nth-child(3) { left: 50%; }
-        .horizontal .lane-marking:nth-child(4) { left: 70%; }
-        .horizontal .lane-marking:nth-child(5) { left: 90%; }
-
-        .vertical .lane-marking:nth-child(1) { top: 10%; }
-        .vertical .lane-marking:nth-child(2) { top: 30%; }
-        .vertical .lane-marking:nth-child(3) { top: 50%; }
-        .vertical .lane-marking:nth-child(4) { top: 70%; }
-        .vertical .lane-marking:nth-child(5) { top: 90%; }
-
         .car {
             position: absolute;
+            width: 40px;
+            height: 20px;
+            background-color: red;
+            z-index: 10;
         }
 
-        @keyframes move-left {
-            0% { left: 0; }
-            100% { left: 100vw; }
+        .car-vertical {
+            width: 20px;
+            height: 40px;
         }
 
-        @keyframes move-right {
-            0% { left: 100vw; }
-            100% { left: 0; }
+        @keyframes moveRight {
+            0% { left: -50px; }
+            100% { left: 110vw; }
         }
 
-        @keyframes move-top {
-            0% { top: 0; }
-            100% { top: 100vh; }
+        @keyframes moveLeft {
+            0% { left: 110vw; }
+            100% { left: -50px; }
         }
 
-        @keyframes move-bottom {
-            0% { top: 100vh; }
-            100% { top: 0; }
+        @keyframes moveDown {
+            0% { top: -50px; }
+            100% { top: 110vh; }
+        }
+
+        @keyframes moveUp {
+            0% { top: 110vh; }
+            100% { top: -50px; }
         }
     </style>
 </head>
 <body>
+    <div class="status-bar">
+        Collisions: <span id="collision-count">0</span> |
+        Time: <span id="time-count">0</span> s
+    </div>
+
     <div class="junction">
-        <div class="road-horizontal horizontal">
-            <div class="lane-marking"></div>
-            <div class="lane-marking"></div>
-            <div class="lane-marking"></div>
-            <div class="lane-marking"></div>
-            <div class="lane-marking"></div>
-        </div>
-        <div class="road-vertical vertical">
-            <div class="lane-marking"></div>
-            <div class="lane-marking"></div>
-            <div class="lane-marking"></div>
-            <div class="lane-marking"></div>
-            <div class="lane-marking"></div>
-        </div>
+        <div class="road-horizontal"></div>
+        <div class="road-vertical"></div>
+
+        <div class="lane-horizontal" style="left: calc(50% - 450px);"></div>
+        <div class="lane-horizontal" style="left: calc(50% - 350px);"></div>
+        <div class="lane-horizontal" style="left: calc(50% - 250px);"></div>
+        <div class="lane-horizontal" style="left: calc(50% - 150px);"></div>
+        <div class="lane-horizontal" style="left: calc(50% - 50px);"></div>
+        <div class="lane-horizontal" style="left: calc(50% + 50px);"></div>
+        <div class="lane-horizontal" style="left: calc(50% + 150px);"></div>
+        <div class="lane-horizontal" style="left: calc(50% + 250px);"></div>
+        <div class="lane-horizontal" style="left: calc(50% + 350px);"></div>
+        <div class="lane-horizontal" style="left: calc(50% + 450px);"></div>
+
+        <div class="lane-vertical" style="top: calc(50% - 450px);"></div>
+        <div class="lane-vertical" style="top: calc(50% - 350px);"></div>
+        <div class="lane-vertical" style="top: calc(50% - 250px);"></div>
+        <div class="lane-vertical" style="top: calc(50% - 150px);"></div>
+        <div class="lane-vertical" style="top: calc(50% - 50px);"></div>
+        <div class="lane-vertical" style="top: calc(50% + 50px);"></div>
+        <div class="lane-vertical" style="top: calc(50% + 150px);"></div>
+        <div class="lane-vertical" style="top: calc(50% + 250px);"></div>
+        <div class="lane-vertical" style="top: calc(50% + 350px);"></div>
+        <div class="lane-vertical" style="top: calc(50% + 450px);"></div>
     </div>
 
     <script>
         const junction = document.querySelector('.junction');
-        let allCars = [];
-        let simulationRunning = true;
+        const collisionDisplay = document.getElementById('collision-count');
+        const timeDisplay = document.getElementById('time-count');
+        let collisionCount = 0;
+        let elapsedTime = 0;
 
-        function getRandomColor() {
-            const colors = ['red', 'orange', 'blue', 'green', 'yellow', 'purple', 'pink', 'cyan'];
-            return colors[Math.floor(Math.random() * colors.length)];
-        }
-
-        function spawnCar() {
-            if (!simulationRunning) return;
-
-            const directions = ['left', 'right', 'top', 'bottom'];
-            const direction = directions[Math.floor(Math.random() * directions.length)];
+        function createCar(direction) {
             const car = document.createElement('div');
             car.classList.add('car');
-            car.style.backgroundColor = getRandomColor();
 
-            const centerX = window.innerWidth / 2;
-            const centerY = window.innerHeight / 2;
-
-            switch (direction) {
-                case 'left':
-                    car.style.width = '40px';
-                    car.style.height = '20px';
-                    car.style.top = `calc(50% + 15px)`;
-                    car.style.left = `${centerX - 400 - 50}px`;
-                    car.style.animation = 'move-left 8s linear forwards';
-                    break;
-                case 'right':
-                    car.style.width = '40px';
-                    car.style.height = '20px';
-                    car.style.top = `calc(50% - 35px)`;
-                    car.style.left = `${centerX + 400 + 10}px`;
-                    car.style.animation = 'move-right 8s linear forwards';
-                    break;
-                case 'top':
-                    car.style.width = '20px';
-                    car.style.height = '40px';
-                    car.style.left = `calc(50% - 35px)`;
-                    car.style.top = `${centerY - 400 - 50}px`;
-                    car.style.animation = 'move-top 8s linear forwards';
-                    break;
-                case 'bottom':
-                    car.style.width = '20px';
-                    car.style.height = '40px';
-                    car.style.left = `calc(50% + 15px)`;
-                    car.style.top = `${centerY + 400 + 10}px`;
-                    car.style.animation = 'move-bottom 8s linear forwards';
-                    break;
+            if (direction === 'left') {
+                car.style.top = 'calc(50% - 25px)';
+                car.style.left = '-50px';
+                car.style.backgroundColor = 'red';
+                car.style.animation = 'moveRight 5s linear forwards';
+            }
+            if (direction === 'right') {
+                car.style.top = 'calc(50% + 10px)';
+                car.style.left = '110vw';
+                car.style.backgroundColor = 'blue';
+                car.style.animation = 'moveLeft 5s linear forwards';
+            }
+            if (direction === 'top') {
+                car.style.left = 'calc(50% - 25px)';
+                car.style.top = '-50px';
+                car.classList.add('car-vertical');
+                car.style.backgroundColor = 'green';
+                car.style.animation = 'moveDown 5s linear forwards';
+            }
+            if (direction === 'bottom') {
+                car.style.left = 'calc(50% + 10px)';
+                car.style.top = '110vh';
+                car.classList.add('car-vertical');
+                car.style.backgroundColor = 'orange';
+                car.style.animation = 'moveUp 5s linear forwards';
             }
 
             junction.appendChild(car);
-            allCars.push(car);
 
-            car.addEventListener('animationend', () => {
+            setTimeout(() => {
                 car.remove();
-                allCars = allCars.filter(c => c !== car);
-            });
+            }, 4000);
         }
 
-        function checkCollision(rect1, rect2) {
-            return !(
-                rect1.right < rect2.left ||
-                rect1.left > rect2.right ||
-                rect1.bottom < rect2.top ||
-                rect1.top > rect2.bottom
-            );
+        function randomDirection() {
+            const directions = ['left', 'right', 'top', 'bottom'];
+            return directions[Math.floor(Math.random() * directions.length)];
         }
 
-        function checkAllCollisions() {
-            if (!simulationRunning) return;
+        function spawnRandomCars() {
+            createCar(randomDirection());
+            const interval = Math.random() * 500 + 100;
+            setTimeout(spawnRandomCars, interval);
+        }
 
-            for (let i = 0; i < allCars.length; i++) {
-                for (let j = i + 1; j < allCars.length; j++) {
-                    const rect1 = allCars[i].getBoundingClientRect();
-                    const rect2 = allCars[j].getBoundingClientRect();
-                    if (checkCollision(rect1, rect2)) {
-                        stopSimulation();
+        function checkCollisions() {
+            const cars = Array.from(document.querySelectorAll('.car'));
+            for (let i = 0; i < cars.length; i++) {
+                for (let j = i + 1; j < cars.length; j++) {
+                    const rect1 = cars[i].getBoundingClientRect();
+                    const rect2 = cars[j].getBoundingClientRect();
+                    if (
+                        rect1.left < rect2.right &&
+                        rect1.right > rect2.left &&
+                        rect1.top < rect2.bottom &&
+                        rect1.bottom > rect2.top
+                    ) {
+                        collisionCount++;
+                        collisionDisplay.textContent = collisionCount;
+                        cars[i].remove();
+                        cars[j].remove();
                         return;
                     }
                 }
             }
-            requestAnimationFrame(checkAllCollisions);
         }
 
-        function stopSimulation() {
-            simulationRunning = false;
-            allCars.forEach(car => {
-                car.style.animationPlayState = 'paused';
-            });
-            alert('Collision detected! Simulation stopped.');
+        function updateTime() {
+            elapsedTime++;
+            timeDisplay.textContent = elapsedTime;
         }
 
-        function randomCarSpawner() {
-            if (!simulationRunning) return;
-            spawnCar();
-            const randomInterval = Math.random() * 500 + 500;
-            setTimeout(randomCarSpawner, randomInterval);
-        }
-
-        randomCarSpawner();
-        requestAnimationFrame(checkAllCollisions);
+        spawnRandomCars();
+        setInterval(checkCollisions, 100);
+        setInterval(updateTime, 1000);
     </script>
-
 </body>
 </html>
