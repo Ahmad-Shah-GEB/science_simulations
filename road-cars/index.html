@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>4-Way Road Junction with Random Cars</title>
+    <style>
+        body {
+            margin: 0;
+            height: 100vh;
+            background-color: #6da446;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            overflow: hidden;
+        }
+
+        .junction {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+        }
+
+        .road-horizontal, .road-vertical {
+            position: absolute;
+            background-color: #373a35;
+        }
+
+        .road-horizontal {
+            width: 800px;
+            height: 100px;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+        }
+
+        .road-vertical {
+            height: 800px;
+            width: 100px;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+        }
+
+        .lane-marking {
+            position: absolute;
+            background-color: white;
+        }
+
+        .horizontal .lane-marking {
+            width: 30px;
+            height: 10px;
+            top: 50%;
+            transform: translateY(-50%);
+        }
+
+        .vertical .lane-marking {
+            width: 10px;
+            height: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+        }
+
+        .horizontal .lane-marking:nth-child(1) { left: 10%; }
+        .horizontal .lane-marking:nth-child(2) { left: 30%; }
+        .horizontal .lane-marking:nth-child(3) { left: 50%; }
+        .horizontal .lane-marking:nth-child(4) { left: 70%; }
+        .horizontal .lane-marking:nth-child(5) { left: 90%; }
+
+        .vertical .lane-marking:nth-child(1) { top: 10%; }
+        .vertical .lane-marking:nth-child(2) { top: 30%; }
+        .vertical .lane-marking:nth-child(3) { top: 50%; }
+        .vertical .lane-marking:nth-child(4) { top: 70%; }
+        .vertical .lane-marking:nth-child(5) { top: 90%; }
+
+        .car {
+            position: absolute;
+        }
+
+        @keyframes move-left {
+            0% { left: 0; }
+            100% { left: 100vw; }
+        }
+
+        @keyframes move-right {
+            0% { left: 100vw; }
+            100% { left: 0; }
+        }
+
+        @keyframes move-top {
+            0% { top: 0; }
+            100% { top: 100vh; }
+        }
+
+        @keyframes move-bottom {
+            0% { top: 100vh; }
+            100% { top: 0; }
+        }
+    </style>
+</head>
+<body>
+    <div class="junction">
+        <div class="road-horizontal horizontal">
+            <div class="lane-marking"></div>
+            <div class="lane-marking"></div>
+            <div class="lane-marking"></div>
+            <div class="lane-marking"></div>
+            <div class="lane-marking"></div>
+        </div>
+        <div class="road-vertical vertical">
+            <div class="lane-marking"></div>
+            <div class="lane-marking"></div>
+            <div class="lane-marking"></div>
+            <div class="lane-marking"></div>
+            <div class="lane-marking"></div>
+        </div>
+    </div>
+
+    <script>
+        const junction = document.querySelector('.junction');
+
+        function getRandomColor() {
+            const colors = ['red', 'orange', 'blue', 'green', 'yellow', 'purple', 'pink', 'cyan'];
+            return colors[Math.floor(Math.random() * colors.length)];
+        }
+
+        function spawnCar() {
+            const directions = ['left', 'right', 'top', 'bottom'];
+            const direction = directions[Math.floor(Math.random() * directions.length)];
+            const car = document.createElement('div');
+            car.classList.add('car');
+            car.style.backgroundColor = getRandomColor();
+
+            // Offset from the center of the screen
+            const centerX = window.innerWidth / 2;
+            const centerY = window.innerHeight / 2;
+
+            switch (direction) {
+                case 'left':
+                    car.style.width = '40px';
+                    car.style.height = '20px';
+                    car.style.top = `calc(50% + 15px)`;
+                    car.style.left = `${centerX - 400 - 50}px`; // Just outside the horizontal road start
+                    car.style.animation = 'move-left 8s linear forwards';
+                    break;
+                case 'right':
+                    car.style.width = '40px';
+                    car.style.height = '20px';
+                    car.style.top = `calc(50% - 35px)`;
+                    car.style.left = `${centerX + 400 + 10}px`; // Just outside the horizontal road end
+                    car.style.animation = 'move-right 8s linear forwards';
+                    break;
+                case 'top':
+                    car.style.width = '20px';
+                    car.style.height = '40px';
+                    car.style.left = `calc(50% - 35px)`;
+                    car.style.top = `${centerY - 400 - 50}px`; // Just above the vertical road start
+                    car.style.animation = 'move-top 8s linear forwards';
+                    break;
+                case 'bottom':
+                    car.style.width = '20px';
+                    car.style.height = '40px';
+                    car.style.left = `calc(50% + 15px)`;
+                    car.style.top = `${centerY + 400 + 10}px`; // Just below the vertical road end
+                    car.style.animation = 'move-bottom 8s linear forwards';
+                    break;
+            }
+
+            car.addEventListener('animationend', () => {
+                car.remove();
+            });
+
+            junction.appendChild(car);
+        }
+
+
+
+        function randomCarSpawner() {
+            spawnCar();
+            const randomInterval = Math.random() * 500 + 500; // Between 0.5s and 2.5s
+            setTimeout(randomCarSpawner, randomInterval);
+        }
+
+        randomCarSpawner();
+    </script>
+</body>
+</html>
