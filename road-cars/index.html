@@ -117,6 +117,8 @@
 
     <script>
         const junction = document.querySelector('.junction');
+        let allCars = [];
+        let simulationRunning = true;
 
         function getRandomColor() {
             const colors = ['red', 'orange', 'blue', 'green', 'yellow', 'purple', 'pink', 'cyan'];
@@ -124,13 +126,14 @@
         }
 
         function spawnCar() {
+            if (!simulationRunning) return;
+
             const directions = ['left', 'right', 'top', 'bottom'];
             const direction = directions[Math.floor(Math.random() * directions.length)];
             const car = document.createElement('div');
             car.classList.add('car');
             car.style.backgroundColor = getRandomColor();
 
-            // Offset from the center of the screen
             const centerX = window.innerWidth / 2;
             const centerY = window.innerHeight / 2;
 
@@ -139,48 +142,84 @@
                     car.style.width = '40px';
                     car.style.height = '20px';
                     car.style.top = `calc(50% + 15px)`;
-                    car.style.left = `${centerX - 400 - 50}px`; // Just outside the horizontal road start
+                    car.style.left = `${centerX - 400 - 50}px`;
                     car.style.animation = 'move-left 8s linear forwards';
                     break;
                 case 'right':
                     car.style.width = '40px';
                     car.style.height = '20px';
                     car.style.top = `calc(50% - 35px)`;
-                    car.style.left = `${centerX + 400 + 10}px`; // Just outside the horizontal road end
+                    car.style.left = `${centerX + 400 + 10}px`;
                     car.style.animation = 'move-right 8s linear forwards';
                     break;
                 case 'top':
                     car.style.width = '20px';
                     car.style.height = '40px';
                     car.style.left = `calc(50% - 35px)`;
-                    car.style.top = `${centerY - 400 - 50}px`; // Just above the vertical road start
+                    car.style.top = `${centerY - 400 - 50}px`;
                     car.style.animation = 'move-top 8s linear forwards';
                     break;
                 case 'bottom':
                     car.style.width = '20px';
                     car.style.height = '40px';
                     car.style.left = `calc(50% + 15px)`;
-                    car.style.top = `${centerY + 400 + 10}px`; // Just below the vertical road end
+                    car.style.top = `${centerY + 400 + 10}px`;
                     car.style.animation = 'move-bottom 8s linear forwards';
                     break;
             }
 
+            junction.appendChild(car);
+            allCars.push(car);
+
             car.addEventListener('animationend', () => {
                 car.remove();
+                allCars = allCars.filter(c => c !== car);
             });
-
-            junction.appendChild(car);
         }
 
+        function checkCollision(rect1, rect2) {
+            return !(
+                rect1.right < rect2.left ||
+                rect1.left > rect2.right ||
+                rect1.bottom < rect2.top ||
+                rect1.top > rect2.bottom
+            );
+        }
 
+        function checkAllCollisions() {
+            if (!simulationRunning) return;
+
+            for (let i = 0; i < allCars.length; i++) {
+                for (let j = i + 1; j < allCars.length; j++) {
+                    const rect1 = allCars[i].getBoundingClientRect();
+                    const rect2 = allCars[j].getBoundingClientRect();
+                    if (checkCollision(rect1, rect2)) {
+                        stopSimulation();
+                        return;
+                    }
+                }
+            }
+            requestAnimationFrame(checkAllCollisions);
+        }
+
+        function stopSimulation() {
+            simulationRunning = false;
+            allCars.forEach(car => {
+                car.style.animationPlayState = 'paused';
+            });
+            alert('Collision detected! Simulation stopped.');
+        }
 
         function randomCarSpawner() {
+            if (!simulationRunning) return;
             spawnCar();
-            const randomInterval = Math.random() * 500 + 500; // Between 0.5s and 2.5s
+            const randomInterval = Math.random() * 500 + 500;
             setTimeout(randomCarSpawner, randomInterval);
         }
 
         randomCarSpawner();
+        requestAnimationFrame(checkAllCollisions);
     </script>
+
 </body>
 </html>
