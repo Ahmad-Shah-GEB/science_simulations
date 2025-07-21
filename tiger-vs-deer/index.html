@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Tiger vs. Deer Simulation with Graph</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            background-color: #88c057;
+            font-family: Arial, sans-serif;
+        }
+
+        .world {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+            background: linear-gradient(to top, #88c057, #b8de89);
+        }
+
+        .deer img, .tiger img {
+            position: absolute;
+            width: 100px;
+            height: 70px;
+            user-select: none;
+        }
+
+        .info {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            color: black;
+            font-size: 18px;
+            background: rgba(255, 255, 255, 0.7);
+            padding: 5px 10px;
+            border-radius: 5px;
+            z-index: 10;
+        }
+
+        .button-container {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            z-index: 10;
+        }
+
+        button {
+            font-size: 16px;
+            padding: 8px 16px;
+            margin-left: 10px;
+            border: none;
+            border-radius: 5px;
+            background-color: #4CAF50;
+            color: white;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background-color: #45a049;
+        }
+
+        canvas {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            background-color: rgba(255, 255, 255, 0.8);
+            display: none;
+            z-index: 5;
+        }
+    </style>
+</head>
+<body>
+
+<div class="world" id="world"></div>
+<div class="info" id="info">Deer: 0 | Tigers: 0</div>
+<div class="button-container">
+    <button id="toggleGraphButton">Show Graph</button>
+</div>
+<canvas id="graphCanvas" width="400" height="150"></canvas>
+
+<script>
+    const world = document.getElementById('world');
+    const info = document.getElementById('info');
+    const worldWidth = window.innerWidth;
+    const worldHeight = window.innerHeight;
+    const toggleGraphButton = document.getElementById('toggleGraphButton');
+    const graphCanvas = document.getElementById('graphCanvas');
+    const graphCtx = graphCanvas.getContext('2d');
+
+    const deerStart = 30;
+    const tigerStart = 1;
+    const deers = [];
+    const tigers = [];
+
+    let populationHistory = [];
+
+    function createAnimal(className, imgSrc, x, y) {
+        const container = document.createElement('div');
+        container.classList.add(className);
+
+        const img = document.createElement('img');
+        img.src = imgSrc;
+        container.appendChild(img);
+
+        container.style.left = x + 'px';
+        container.style.top = y + 'px';
+        container.style.position = 'absolute';
+
+        if (className === 'deer') {
+            container.dataset.angle = Math.random() * 2 * Math.PI;
+            container.dataset.speed = 1 + Math.random();
+        }
+        if (className === 'tiger') {
+            container.dataset.hunger = 500;
+            container.dataset.lifespan = 1000 + Math.random() * 1000;
+            container.dataset.eaten = 0;
+        }
+
+        world.appendChild(container);
+        return container;
+    }
+
+    for (let i = 0; i < deerStart; i++) {
+        const x = Math.random() * (worldWidth - 100);
+        const y = Math.random() * (worldHeight - 70);
+        deers.push(createAnimal('deer', 'deer.png', x, y));
+    }
+
+    for (let i = 0; i < tigerStart; i++) {
+        const x = Math.random() * (worldWidth - 100);
+        const y = Math.random() * (worldHeight - 70);
+        tigers.push(createAnimal('tiger', 'tiger.png', x, y));
+    }
+
+    toggleGraphButton.addEventListener('click', () => {
+        if (graphCanvas.style.display === 'none') {
+            graphCanvas.style.display = 'block';
+            toggleGraphButton.textContent = 'Hide Graph';
+        } else {
+            graphCanvas.style.display = 'none';
+            toggleGraphButton.textContent = 'Show Graph';
+        }
+    });
+
+    function moveDeers() {
+        deers.forEach(deer => {
+            let angle = parseFloat(deer.dataset.angle);
+            const speed = parseFloat(deer.dataset.speed);
+            angle += (Math.random() - 0.5) * 0.2;
+            deer.dataset.angle = angle;
+
+            let x = parseFloat(deer.style.left) + Math.cos(angle) * speed;
+            let y = parseFloat(deer.style.top) + Math.sin(angle) * speed;
+
+            if (x < 0 || x > worldWidth - 100) {
+                angle = Math.PI - angle;
+                deer.dataset.angle = angle;
+                x = Math.max(0, Math.min(worldWidth - 100, x));
+            }
+            if (y < 0 || y > worldHeight - 70) {
+                angle = -angle;
+                deer.dataset.angle = angle;
+                y = Math.max(0, Math.min(worldHeight - 70, y));
+            }
+
+            deer.style.left = x + 'px';
+            deer.style.top = y + 'px';
+
+            const deerReproductionChance = 0.01 * (1 - (deers.length / 100));
+            if (Math.random() < deerReproductionChance && deers.length < 100) {
+                const nx = x + Math.random() * 50 - 25;
+                const ny = y + Math.random() * 50 - 25;
+                deers.push(createAnimal('deer', 'deer.png', nx, ny));
+            }
+        });
+    }
+
+    function moveTigers() {
+        tigers.forEach(tiger => {
+            let tx = parseFloat(tiger.style.left);
+            let ty = parseFloat(tiger.style.top);
+            let closestDeer = null;
+            let minDist = Infinity;
+
+            deers.forEach(deer => {
+                const dx = parseFloat(deer.style.left) - tx;
+                const dy = parseFloat(deer.style.top) - ty;
+                const dist = Math.sqrt(dx * dx + dy * dy);
+                if (dist < minDist) {
+                    minDist = dist;
+                    closestDeer = deer;
+                }
+            });
+
+            if (closestDeer) {
+                const dx = parseFloat(closestDeer.style.left) - tx;
+                const dy = parseFloat(closestDeer.style.top) - ty;
+                const length = Math.sqrt(dx * dx + dy * dy);
+                if (length > 0) {
+                    tx += (dx / length) * 1.5;
+                    ty += (dy / length) * 1.5;
+                }
+                tiger.style.left = tx + 'px';
+                tiger.style.top = ty + 'px';
+
+                if (minDist < 50) {
+                    closestDeer.remove();
+                    deers.splice(deers.indexOf(closestDeer), 1);
+                    tiger.dataset.hunger = 500;
+                    tiger.dataset.eaten = parseInt(tiger.dataset.eaten) + 1;
+
+                    const tigerReproductionChance = 0.2 * (1 - (tigers.length / 15));
+                    if (Math.random() < tigerReproductionChance && tigers.length < 15) {
+                        let nx, ny;
+                        do {
+                            nx = Math.random() * (worldWidth - 100);
+                            ny = Math.random() * (worldHeight - 70);
+                        } while (Math.abs(nx - tx) < 200 && Math.abs(ny - ty) < 200);
+                        tigers.push(createAnimal('tiger', 'tiger.png', nx, ny));
+                    }
+                }
+            }
+
+            tiger.dataset.hunger--;
+            tiger.dataset.lifespan--;
+
+            if (tiger.dataset.hunger <= 0 || tiger.dataset.lifespan <= 0) {
+                tiger.remove();
+                tigers.splice(tigers.indexOf(tiger), 1);
+            }
+        });
+
+        for (let i = 0; i < tigers.length; i++) {
+            const tigerA = tigers[i];
+            const ax = parseFloat(tigerA.style.left);
+            const ay = parseFloat(tigerA.style.top);
+            for (let j = i + 1; j < tigers.length; j++) {
+                const tigerB = tigers[j];
+                const bx = parseFloat(tigerB.style.left);
+                const by = parseFloat(tigerB.style.top);
+                const dist = Math.sqrt((ax - bx) ** 2 + (ay - by) ** 2);
+                if (dist < 50) {
+                    const eatenA = parseInt(tigerA.dataset.eaten);
+                    const eatenB = parseInt(tigerB.dataset.eaten);
+                    if (eatenA > eatenB) {
+                        tigerB.remove();
+                        tigers.splice(j, 1);
+                        j--;
+                    } else if (eatenB > eatenA) {
+                        tigerA.remove();
+                        tigers.splice(i, 1);
+                        i--;
+                        break;
+                    }
+                }
+            }
+        }
+    }
+
+    function updateInfo() {
+        info.textContent = `Deer: ${deers.length} | Tigers: ${tigers.length}`;
+    }
+
+    function drawGraph() {
+        populationHistory.push({ deer: deers.length, tiger: tigers.length });
+        if (populationHistory.length > 400) {
+            populationHistory.shift();
+        }
+
+        graphCtx.clearRect(0, 0, graphCanvas.width, graphCanvas.height);
+
+        graphCtx.beginPath();
+        graphCtx.strokeStyle = 'green';
+        populationHistory.forEach((point, i) => {
+            const y = graphCanvas.height - (point.deer / 100) * graphCanvas.height;
+            if (i === 0) graphCtx.moveTo(i, y);
+            else graphCtx.lineTo(i, y);
+        });
+        graphCtx.stroke();
+
+        graphCtx.beginPath();
+        graphCtx.strokeStyle = 'red';
+        populationHistory.forEach((point, i) => {
+            const y = graphCanvas.height - (point.tiger / 15) * graphCanvas.height;
+            if (i === 0) graphCtx.moveTo(i, y);
+            else graphCtx.lineTo(i, y);
+        });
+        graphCtx.stroke();
+    }
+
+    function animate() {
+        moveDeers();
+        moveTigers();
+        updateInfo();
+        if (graphCanvas.style.display !== 'none') {
+            drawGraph();
+        }
+        requestAnimationFrame(animate);
+    }
+
+    animate();
+</script>
+
+</body>
+</html>
