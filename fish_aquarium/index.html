@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Scared Fish (1-4) in Aquarium</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: #0a3d62;
+            overflow: hidden;
+        }
+
+        .aquarium {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+            background: linear-gradient(to top, #0a3d62, #3c6382);
+            overflow: hidden;
+        }
+
+        .fish {
+            position: absolute;
+            width: 150px;
+            height: auto;
+            transition: transform 0.5s;
+        }
+
+        .bubble {
+            position: absolute;
+            width: 20px;
+            height: 20px;
+            background-color: rgba(255, 255, 255, 0.5);
+            border-radius: 50%;
+            animation: bubbleMove 5s linear infinite;
+        }
+
+        @keyframes bubbleMove {
+            0% { bottom: 0; opacity: 0.8; }
+            100% { bottom: 100vh; opacity: 0; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="aquarium" id="aquarium"></div>
+
+<script>
+    function createFish() {
+        const fish = document.createElement('img');
+        const fishNumber = Math.floor(Math.random() * 4) + 1; // 1-4
+        fish.src = `fish${fishNumber}.png`;
+        fish.classList.add('fish');
+
+        fish.style.top = Math.random() * 90 + 'vh';
+        fish.style.left = Math.random() * 90 + 'vw';
+
+        // Random direction: 1 (right), -1 (left)
+        fish.dataset.direction = Math.random() < 0.5 ? 1 : -1;
+        fish.style.transform = fish.dataset.direction == 1 ? 'scaleX(1)' : 'scaleX(-1)';
+
+        fish.speed = Math.random() * 0.06 + 0.1; // Slow speed (0.3vw to 0.8vw per frame)
+        document.getElementById('aquarium').appendChild(fish);
+
+        return fish;
+    }
+
+    const fishes = [];
+    const numberOfFish = Math.floor(Math.random() * 6) + 5;
+    for (let i = 0; i < numberOfFish; i++) {
+        fishes.push(createFish());
+    }
+
+    function moveFish() {
+        fishes.forEach(fish => {
+            let left = parseFloat(fish.style.left);
+            let direction = parseInt(fish.dataset.direction);
+            left += fish.speed * direction;
+            if (left < -15) {
+                direction = 1;
+                fish.style.transform = 'scaleX(1)';
+            }
+            if (left > 100) {
+                direction = -1;
+                fish.style.transform = 'scaleX(-1)';
+            }
+            fish.style.left = left + 'vw';
+            fish.dataset.direction = direction;
+        });
+        requestAnimationFrame(moveFish);
+    }
+    moveFish();
+
+    document.addEventListener('mousemove', (e) => {
+        const mouseX = e.clientX;
+        const mouseY = e.clientY;
+
+        fishes.forEach(fish => {
+            const rect = fish.getBoundingClientRect();
+            const fishX = rect.left + rect.width / 2;
+            const fishY = rect.top + rect.height / 2;
+            const dx = fishX - mouseX;
+            const dy = fishY - mouseY;
+            const distance = Math.sqrt(dx * dx + dy * dy);
+            if (distance < 150) {
+                let direction = parseInt(fish.dataset.direction);
+                fish.dataset.direction = direction * -1;
+                fish.style.transform = `scaleX(${fish.dataset.direction})`;
+            }
+        });
+    });
+
+    function createBubble() {
+        const bubble = document.createElement('div');
+        bubble.classList.add('bubble');
+        bubble.style.left = Math.random() * 100 + 'vw';
+        bubble.style.bottom = '0';
+        document.getElementById('aquarium').appendChild(bubble);
+
+        setTimeout(() => {
+            bubble.remove();
+        }, 5000);
+    }
+
+    setInterval(createBubble, 500);
+</script>
+
+</body>
+</html>
