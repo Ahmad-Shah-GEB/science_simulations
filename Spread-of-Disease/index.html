@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Disease Simulation (Mask, Incubation, Recovery, Death)</title>
+    <style>
+        body {
+            margin: 0;
+            background: #111;
+            color: white;
+            font-family: Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+        }
+        .controls {
+            background: #222;
+            display: flex;
+            justify-content: space-between;
+            padding: 10px;
+        }
+        .slider {
+            display: flex;
+            flex-direction: column;
+            margin: 0 10px;
+        }
+        label {
+            margin-bottom: 5px;
+        }
+        .canvas-container {
+            display: flex;
+            flex-grow: 1;
+
+        }
+        .canvas-wrapper {
+            flex: 1;
+            position: relative;
+            border: 2px solid #444; /* Add this */
+            box-sizing: border-box;
+        }
+
+        canvas {
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+    </style>
+</head>
+<body>
+
+<div class="controls">
+    <div class="slider">
+        <label>Mask (Healthy/Incubating Left): <span id="maskHealthyLeftDisplay">0%</span></label>
+        <input type="range" id="maskHealthyLeftSlider" min="0" max="1" step="0.01" value="0">
+        <label>Mask (Sick Left): <span id="maskInfectedLeftDisplay">0%</span></label>
+        <input type="range" id="maskInfectedLeftSlider" min="0" max="1" step="0.01" value="0">
+    </div>
+    <div class="slider">
+        <label>Speed: <span id="speedDisplay">1.0</span>x</label>
+        <input type="range" id="speedSlider" min="0.1" max="5" step="0.1" value="1">
+        <label>Incubation: <span id="incubationDisplay">500</span></label>
+        <input type="range" id="incubationSlider" min="0" max="2000" step="10" value="500">
+        <label>Death Rate: <span id="deathRateDisplay">5%</span></label>
+        <input type="range" id="deathRateSlider" min="0" max="0.5" step="0.01" value="0.05">
+
+    </div>
+    <div class="slider">
+        <label>Mask (Healthy/Incubating Right): <span id="maskHealthyRightDisplay">0%</span></label>
+        <input type="range" id="maskHealthyRightSlider" min="0" max="1" step="0.01" value="0">
+        <label>Mask (Sick Right): <span id="maskInfectedRightDisplay">0%</span></label>
+        <input type="range" id="maskInfectedRightSlider" min="0" max="1" step="0.01" value="0">
+    </div>
+</div>
+
+<div class="canvas-container">
+    <div class="canvas-wrapper">
+        <div id="leftCounter" style="position: absolute; top: 10px; left: 10px; color: white; z-index: 1;">
+            Alive: 0 | Dead: 0
+        </div>
+        <canvas id="canvasLeft"></canvas>
+    </div>
+    <div class="canvas-wrapper">
+        <div id="rightCounter" style="position: absolute; top: 10px; left: 10px; color: white; z-index: 1;">
+            Alive: 0 | Dead: 0
+        </div>
+        <canvas id="canvasRight"></canvas>
+    </div>
+</div>
+
+
+<script>
+    const canvasLeft = document.getElementById('canvasLeft');
+    const ctxLeft = canvasLeft.getContext('2d');
+    const canvasRight = document.getElementById('canvasRight');
+    const ctxRight = canvasRight.getContext('2d');
+    function resizeCanvas(canvas) {
+        canvas.width = canvas.clientWidth;
+        canvas.height = canvas.clientHeight;
+    }
+    resizeCanvas(canvasLeft);
+    resizeCanvas(canvasRight);
+    const deathRateSlider = document.getElementById('deathRateSlider');
+    const deathRateDisplay = document.getElementById('deathRateDisplay');
+    let deathChance = 0.05;
+
+    deathRateSlider.addEventListener('input', () => {
+        deathChance = parseFloat(deathRateSlider.value);
+        deathRateDisplay.textContent = Math.round(deathChance * 100) + '%';
+    });
+
+
+    const speedSlider = document.getElementById('speedSlider');
+    const speedDisplay = document.getElementById('speedDisplay');
+    let speedMultiplier = 1;
+    speedSlider.addEventListener('input', () => {
+        speedMultiplier = parseFloat(speedSlider.value);
+        speedDisplay.textContent = speedMultiplier.toFixed(1);
+    });
+
+    const incubationSlider = document.getElementById('incubationSlider');
+    const incubationDisplay = document.getElementById('incubationDisplay');
+    let incubationPeriod = 500;
+    incubationSlider.addEventListener('input', () => {
+        incubationPeriod = parseInt(incubationSlider.value);
+        incubationDisplay.textContent = incubationPeriod;
+    });
+
+    const controls = [
+        { healthySlider: 'maskHealthyLeftSlider', healthyDisplay: 'maskHealthyLeftDisplay', infectedSlider: 'maskInfectedLeftSlider', infectedDisplay: 'maskInfectedLeftDisplay' },
+        { healthySlider: 'maskHealthyRightSlider', healthyDisplay: 'maskHealthyRightDisplay', infectedSlider: 'maskInfectedRightSlider', infectedDisplay: 'maskInfectedRightDisplay' }
+    ];
+
+    const infectionRadius = 15;
+    const numIndividuals = 100;
+    const sicknessDuration = 600;
+
+
+    class Person {
+        constructor(width, height) {
+            this.x = Math.random() * width;
+            this.y = Math.random() * height;
+            this.vx = (Math.random() - 0.5) * 2;
+            this.vy = (Math.random() - 0.5) * 2;
+            this.infected = Math.random() < 0.05;
+            this.incubating = this.infected;
+            this.infectionTimer = this.infected ? incubationPeriod : 0;
+            this.sicknessTimer = 0;
+            this.masked = false;
+            this.alive = true;
+            this.immune = false;
+        }
+        move(width, height) {
+            if (!this.alive) return;
+            this.x += this.vx * speedMultiplier;
+            this.y += this.vy * speedMultiplier;
+            if (this.x < 0 || this.x > width) this.vx *= -1;
+            if (this.y < 0 || this.y > height) this.vy *= -1;
+        }
+        update() {
+            if (!this.alive || this.immune) return;
+            if (this.infected && this.infectionTimer > 0) {
+                this.infectionTimer--;
+                if (this.infectionTimer === 0) {
+                    this.incubating = false;
+                    this.sicknessTimer = sicknessDuration;
+                }
+            }
+            if (this.infected && !this.incubating && this.sicknessTimer > 0) {
+                this.sicknessTimer--;
+                if (this.sicknessTimer <= 0) {
+                    if (Math.random() < deathChance) {
+                        this.alive = false;
+                    } else {
+                        this.infected = false;
+                        this.immune = true;
+                    }
+                }
+            }
+        }
+        draw(ctx) {
+            if (!this.alive) return;
+            ctx.beginPath();
+            ctx.arc(this.x, this.y, 10, 0, Math.PI * 2);
+            if (this.immune) ctx.fillStyle = 'green';
+            else if (this.infected) ctx.fillStyle = this.incubating ? 'yellow' : 'red';
+            else ctx.fillStyle = 'white';
+            ctx.fill();
+            if (this.masked) {
+                ctx.strokeStyle = 'green';
+                ctx.lineWidth = 2;
+                ctx.stroke();
+            }
+        }
+    }
+
+    function createPopulation(width, height) {
+        return Array.from({ length: numIndividuals }, () => new Person(width, height));
+    }
+
+    function applyMaskLevel(individuals, healthyLevel, infectedLevel) {
+        const healthy = individuals.filter(p => !p.infected || p.incubating);
+        const infected = individuals.filter(p => p.infected && !p.incubating);
+        healthy.forEach((p, idx) => p.masked = idx < Math.round(healthy.length * healthyLevel));
+        infected.forEach((p, idx) => p.masked = idx < Math.round(infected.length * infectedLevel));
+    }
+
+    const individualsLeft = createPopulation(canvasLeft.width, canvasLeft.height);
+    const individualsRight = createPopulation(canvasRight.width, canvasRight.height);
+    const leftCounter = document.getElementById('leftCounter');
+    const rightCounter = document.getElementById('rightCounter');
+
+
+    controls.forEach((c, idx) => {
+        const healthySlider = document.getElementById(c.healthySlider);
+        const healthyDisplay = document.getElementById(c.healthyDisplay);
+        const infectedSlider = document.getElementById(c.infectedSlider);
+        const infectedDisplay = document.getElementById(c.infectedDisplay);
+        const individuals = idx === 0 ? individualsLeft : individualsRight;
+        let healthyLevel = 0, infectedLevel = 0;
+        function updateMasking() {
+            healthyLevel = parseFloat(healthySlider.value);
+            infectedLevel = parseFloat(infectedSlider.value);
+            healthyDisplay.textContent = Math.round(healthyLevel * 100) + '%';
+            infectedDisplay.textContent = Math.round(infectedLevel * 100) + '%';
+            applyMaskLevel(individuals, healthyLevel, infectedLevel);
+        }
+        healthySlider.addEventListener('input', updateMasking);
+        infectedSlider.addEventListener('input', updateMasking);
+    });
+
+    function checkInfections(individuals) {
+        for (let i = 0; i < individuals.length; i++) {
+            for (let j = i + 1; j < individuals.length; j++) {
+                const a = individuals[i], b = individuals[j];
+                if (!a.alive || !b.alive || a.immune || b.immune) continue;
+                const dx = a.x - b.x, dy = a.y - b.y;
+                const distance = Math.sqrt(dx * dx + dy * dy);
+                if (distance < infectionRadius) {
+                    const contagiousA = a.infected;
+                    const contagiousB = b.infected;
+                    if ((contagiousA && !b.infected) || (contagiousB && !a.infected)) {
+                        if (!(a.masked || b.masked)) {
+                            if (contagiousA && !b.infected) {
+                                b.infected = true;
+                                b.incubating = true;
+                                b.infectionTimer = incubationPeriod;
+                            }
+                            if (contagiousB && !a.infected) {
+                                a.infected = true;
+                                a.incubating = true;
+                                a.infectionTimer = incubationPeriod;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    function animate(ctx, canvas, individuals, counterElement) {
+        ctx.fillStyle = '#111';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        individuals.forEach(p => {
+            p.move(canvas.width, canvas.height);
+            p.update();
+            p.draw(ctx);
+        });
+
+        const aliveCount = individuals.filter(p => p.alive).length;
+        const deadCount = individuals.length - aliveCount;
+        counterElement.textContent = `Alive: ${aliveCount} | Dead: ${deadCount}`;
+
+        checkInfections(individuals);
+        requestAnimationFrame(() => animate(ctx, canvas, individuals, counterElement));
+    }
+
+
+    animate(ctxLeft, canvasLeft, individualsLeft, leftCounter);
+    animate(ctxRight, canvasRight, individualsRight, rightCounter);
+
+</script>
+
+</body>
+</html>
