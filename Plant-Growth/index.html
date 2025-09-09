@@ -338,9 +338,9 @@
       <h3>Pot 1</h3>
 
       <div class="control-row">
-        <label class="slider-label" for="temperature1">Temp. (°C)</label>
+        <label class="slider-label" for="temperature1">Temp.</label>
         <input type="range" id="temperature1" min="0" max="50" step="1" value="25"
-               oninput="temperatureValue1.textContent = this.value" />
+               oninput="updateTempDisplays()" />
         <span id="temperatureValue1">25</span>
       </div>
 
@@ -353,10 +353,9 @@
 
       <div class="control-row">
         <label class="slider-label" for="humidity1">
-          <span class="has-tip" data-tip="Amount of water vapor in the air">Humidity</span> (%)
-        </label>
+          <span class="has-tip" data-tip="Amount of water vapor in the air">Humidity</span></label>
         <input type="range" id="humidity1" min="0" max="100" step="1" value="50"
-               oninput="humidityValue1.textContent = this.value; updateHumidityBubbles('p1')" />
+               oninput="humidityValue1.textContent = this.value + '%'; updateHumidityBubbles('p1')" />
         <span id="humidityValue1">50</span>
       </div>
 
@@ -373,9 +372,9 @@
       <h3>Pot 2</h3>
 
       <div class="control-row">
-        <label class="slider-label" for="temperature2">Temp. (°C)</label>
+        <label class="slider-label" for="temperature2">Temp</label>
         <input type="range" id="temperature2" min="0" max="50" step="1" value="25"
-               oninput="temperatureValue2.textContent = this.value" />
+               oninput="updateTempDisplays()" />
         <span id="temperatureValue2">25</span>
       </div>
 
@@ -388,10 +387,9 @@
 
       <div class="control-row">
         <label class="slider-label" for="humidity2">
-          <span class="has-tip" data-tip="Amount of water vapor in the air">Humidity</span> (%)
-        </label>  
+          <span class="has-tip" data-tip="Amount of water vapor in the air">Humidity</span></label>
         <input type="range" id="humidity2" min="0" max="100" step="1" value="50"
-               oninput="humidityValue2.textContent = this.value; updateHumidityBubbles('p1')" />
+               oninput="humidityValue2.textContent = this.value + '%'; updateHumidityBubbles('p1')" />
         <span id="humidityValue2">50</span>
       </div>
 
@@ -411,6 +409,9 @@
     <button id="pauseResumeBtn" onclick="togglePause()">Pause</button>
     <button id="toggleMoodBtn" onclick="toggleMood()">Show Plants' Mood</button>
     <button id="settingsBtn" onclick="toggleSettings()">⚙️</button>
+    <button id="unitToggleBtn" onclick="toggleTempUnit()">C°&gt;F°</button>
+
+
 
   </div>
 
@@ -543,6 +544,28 @@
     const DEFAULTS = { tempMin: 20, tempMax: 30, humMin: 40, humMax: 60, lightMin: 8, lightMax: 16 };
     let settings = { ...DEFAULTS };
 
+    let useFahrenheit = false; // false = show °C, true = show °F
+
+    function cToF(c){ return c * 9/5 + 32; }
+
+    function updateTempDisplays(){
+      const t1C = parseFloat(document.getElementById('temperature1').value) || 0;
+      const t2C = parseFloat(document.getElementById('temperature2').value) || 0;
+
+      const v1 = useFahrenheit ? Math.round(cToF(t1C)) + '°F' : Math.round(t1C) + '°C';
+      const v2 = useFahrenheit ? Math.round(cToF(t2C)) + '°F' : Math.round(t2C) + '°C';
+
+      document.getElementById('temperatureValue1').textContent = v1;
+      document.getElementById('temperatureValue2').textContent = v2;
+    }
+
+    function toggleTempUnit(){
+      useFahrenheit = !useFahrenheit;
+      document.getElementById('unitToggleBtn').textContent = useFahrenheit ? 'F°>C°' : 'C°>F°';
+      updateTempDisplays();
+    }
+
+
     // Map humidity & fan to a bubble count (max ~30); fan reduces visible bubbles
     function fanToMotion(fan) {
       const f  = Math.max(0, Math.min(5, Number(fan) || 0)); // clamp 0..5
@@ -565,7 +588,7 @@
     function computeBubbleCount(humidity, fan) {
       // Effective humidity (fan dries air visually): up to -50% at fan=5
       const effective = Math.max(0, Math.min(100, humidity * (1 - 0.1 * fan)));
-      const MAX_BUBBLES = 80;
+      const MAX_BUBBLES = 100;
       return Math.round((effective / 100) * MAX_BUBBLES);
     }
 
@@ -1317,6 +1340,7 @@
 
       // Initial render for BOTH pots once
       updateHumidityBubbles();
+      updateTempDisplays();
 
       // Pot 1 only
       document.getElementById('humidity1')?.addEventListener('input', () => updateHumidityBubbles('p1'));
@@ -1325,6 +1349,8 @@
       // Pot 2 only
       document.getElementById('humidity2')?.addEventListener('input', () => updateHumidityBubbles('p2'));
       document.getElementById('fanspeed2')?.addEventListener('input', () => updateHumidityBubbles('p2'));
+      humidityValue1.textContent = document.getElementById('humidity1').value + '%';
+      humidityValue2.textContent = document.getElementById('humidity2').value + '%';
     });
     /* =======================
        Graph Tooltip Logic
