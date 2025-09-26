@@ -404,12 +404,13 @@
 
   <!-- Simulation Buttons -->
   <div class="sim-controls">
-    <button onclick="simulateGrowth()">Simulate Growth</button>
+    <button onclick="simulateGrowth()">Run Simulator</button>
     <button onclick="resetSimulation()">Reset</button>
     <button id="pauseResumeBtn" onclick="togglePause()">Pause</button>
     <button id="toggleMoodBtn" onclick="toggleMood()">Show Plants' Mood</button>
-    <button id="settingsBtn" onclick="toggleSettings()">⚙️</button>
     <button id="unitToggleBtn" onclick="toggleTempUnit()">C°&gt;F°</button>
+    <button id="toggleDayNightBtn" onclick="toggleDayNightSim()">Show ☀️/🌙</button>
+    <button id="settingsBtn" onclick="toggleSettings()">⚙️</button>
 
 
 
@@ -490,11 +491,11 @@
       <div class="height-records">
         <div class="height-box">
           <strong>Plant 1 Height</strong>
-          <div id="heightDisplay1">5 cm (2 inch)</div>
+          <div id="heightDisplay1">0 cm (0 inch)</div>
         </div>
         <div class="height-box">
           <strong>Plant 2 Height</strong>
-          <div id="heightDisplay2">5 cm (2 inch)</div>
+          <div id="heightDisplay2">0 cm (0 inch)</div>
         </div>
       </div>
     </div>
@@ -520,10 +521,13 @@
     let showMood = false;
     let lightCyclePhase = 0;  // 0..1 across a visual "day"
     let lightTimer = null;    // interval handle
+    let isDayNightEnabled = false;
+
     const BASE_VISUAL_DAY_MS = 12000; // your old “12 s per day” baseline
     // How long one simulated day lasts at 1x speed (slower now)
     const VISUAL_DAY_MS_AT_1X = 4000; // 4 seconds per day at 1x
     const LIGHT_STEP_MS = 100;         // light cycle tick
+
 
 
     // Store day-by-day heights (in cm) for the graph
@@ -564,6 +568,25 @@
       document.getElementById('unitToggleBtn').textContent = useFahrenheit ? 'F°>C°' : 'C°>F°';
       updateTempDisplays();
     }
+
+    function toggleDayNightSim() {
+      isDayNightEnabled = !isDayNightEnabled;
+      const btn = document.getElementById('toggleDayNightBtn');
+      btn.textContent = isDayNightEnabled ? 'Hide ☀️/🌙' : 'Show ☀️/🌙';
+
+      if (isDayNightEnabled) {
+        // start (or resume) the visual cycle
+        startLightCycle();
+        updatePotLightState();
+      } else {
+        // stop cycle and clear the visual day/night classes
+        if (lightTimer !== null) { clearInterval(lightTimer); lightTimer = null; }
+        lightCyclePhase = 0;
+        document.querySelectorAll('.pot, .pot-only').forEach(p => p.classList.remove('day','night'));
+      }
+    }
+
+
 
 
     // Map humidity & fan to a bubble count (max ~30); fan reduces visible bubbles
@@ -752,7 +775,7 @@
     ======================= */
     function increaseSpeed() {
       speedMultiplier *= 2;
-      if (speedMultiplier > 8) speedMultiplier = 8;
+      if (speedMultiplier > 16) speedMultiplier = 16;
       document.getElementById('speedDisplay').textContent = "Speed: " + speedMultiplier + "x";
     }
     function decreaseSpeed() {
@@ -814,6 +837,31 @@
       }, LIGHT_STEP_MS);
     }
 
+    function getGraphScales(currentDay){
+      if (currentDay <= 10)  return { maxDay: 15, maxCm: 30 };
+      if (currentDay <= 20)  return { maxDay: 30, maxCm: 60 };
+      if (currentDay <= 40)  return { maxDay: 50, maxCm: 80 };
+      return { maxDay: 60, maxCm: 100 }; // fallback for >40
+    }
+
+    function getAxisTicks(maxDay, maxCm){
+      // Exact specs you requested
+      if (maxDay === 15 && maxCm === 30) return { dayTicks: [5,10,15], cmTicks: [10,20,30] };
+      if (maxDay === 30 && maxCm === 60) return { dayTicks: [10,20,30], cmTicks: [20,40,60] };
+
+      // Nice defaults for other ranges you use (e.g., 50/80, 60/100)
+      if (maxDay === 50 && maxCm === 80) return { dayTicks: [10,20,30,40,50], cmTicks: [20,40,60,80] };
+      if (maxDay === 60 && maxCm === 100) return { dayTicks: [10,20,30,40,50,60], cmTicks: [20,40,60,80,100] };
+
+      // Generic fallback
+      const dayStep = (maxDay <= 20) ? 5 : 10;
+      const cmStep  = (maxCm  <= 30) ? 10 : 20;
+      const dayTicks = [];
+      for (let d = dayStep; d <= maxDay; d += dayStep) dayTicks.push(d);
+      const cmTicks = [];
+      for (let c = cmStep; c <= maxCm; c += cmStep) cmTicks.push(c);
+      return { dayTicks, cmTicks };
+    }
 
 
 
@@ -833,7 +881,7 @@
       cancelGrowth1 = false;
       cancelGrowth2 = false;
       isPaused = false;
-      startLightCycle();
+      if (isDayNightEnabled) startLightCycle();
       updatePotLightState();
       updateHumidityBubbles();
 
@@ -849,8 +897,8 @@
        Growth Logic
     ======================= */
     function startGrowing(plant, temp, humidity, light, fanspeed, displayId, plantNumber) {
-      const baseGrowthRate = 0.06;
-      let height = 20; // starting height in px
+      const baseGrowthRate = 0.05;
+      let height = 1; // starting height in px
       plant.style.height = height + 'px';
 
       const leafSets = [];
@@ -982,7 +1030,7 @@
         if (heightInCM > maxAllowedHeight) {
           height = maxAllowedHeight / PX_TO_MM;
           heightInCM = maxAllowedHeight;
-          heightInMM = maxAllowedHeight * 10; // in mm
+          heightInMM = maxAllowedHeight; // in mm
         }
 
         const heightInInches = heightInMM * 0.393701;
@@ -1003,13 +1051,13 @@
         if (currentLight > 16 || currentLight < 2) {
           bloomAllowed = false;  // 🌞 too much or 🌑 too little light
         } else if (currentLight < 4) {
-          minBloomHeight = 85;
+          minBloomHeight = 70;
         } else if (currentLight < 6) {
-          minBloomHeight = 80;
-        } else if (happiness < 0.95) {
-          minBloomHeight = 75;
-        } else {
           minBloomHeight = 60;
+        } else if (happiness < 0.95) {
+          minBloomHeight = 50;
+        } else {
+          minBloomHeight = 45;
         }
 
 
@@ -1153,10 +1201,9 @@
 
       const initMM = 20 * PX_TO_MM;
       const initInch = initMM * 0.393701;
-      document.getElementById('heightDisplay1').textContent =
-        initMM.toFixed(0) + ' cm (' + initInch.toFixed(0) + ' in)';
-      document.getElementById('heightDisplay2').textContent =
-        initMM.toFixed(0) + ' cm (' + initInch.toFixed(0) + ' in)';
+      document.getElementById('heightDisplay1').textContent = '0 cm (0 inch)';
+      document.getElementById('heightDisplay2').textContent = '0 cm (0 inch)';
+
 
       dayHeights1.length = 0;
       dayHeights2.length = 0;
@@ -1221,17 +1268,24 @@
       const canvasHeight = canvasEl.height;
       const w = canvasWidth - margin * 2;
       const h = canvasHeight - margin * 2;
-      const maxDay = 60;
-      const maxCm = 100;
+      // REPLACE these two fixed lines:
+      // const maxDay = 60;
+      // const maxCm = 100;
 
-      function xForDay(day) {
-        return margin + (day / maxDay) * w;
+      // WITH:
+      const { maxDay, maxCm } = getGraphScales(day || 0);
+      const { dayTicks, cmTicks } = getAxisTicks(maxDay, maxCm);
+
+
+      function xForDay(d) {
+        return margin + (d / maxDay) * w;
       }
-      function yForCm(cm) {
-        if (cm > maxCm) cm = maxCm;
-        const ratio = cm / maxCm;
+      function yForCm(cmVal) {
+        const clamped = Math.min(cmVal, maxCm);
+        const ratio = clamped / maxCm;
         return margin + (1 - ratio) * h;
       }
+
 
       ctx.lineWidth = 1.5;
       ctx.strokeStyle = "#000";
@@ -1254,27 +1308,38 @@
       ctx.fillText("Height (cm)", 0, 0);
       ctx.restore();
 
+      // X-axis ticks & labels
       ctx.textAlign = "center";
       ctx.textBaseline = "top";
-      for (let d = 0; d <= 60; d += 10) {
-        const x = xForDay(d);
+
+      // Optional origin label
+      ctx.fillText("0", margin, xAxisY + 7);
+
+      for (const d of dayTicks) {
+        const x = margin + (d / maxDay) * w;
         ctx.beginPath();
         ctx.moveTo(x, xAxisY);
         ctx.lineTo(x, xAxisY + 5);
         ctx.stroke();
-        ctx.fillText(d.toString(), x, xAxisY + 7);
+        ctx.fillText(String(d), x, xAxisY + 7);
       }
 
+      // Y-axis ticks & labels
       ctx.textAlign = "right";
       ctx.textBaseline = "middle";
-      for (let cm = 0; cm <= 100; cm += 20) {
+
+      // Optional origin at 0 cm
+      ctx.fillText("0", margin - 7, canvasHeight - margin);
+
+      for (const cm of cmTicks) {
         const y = margin + (1 - cm / maxCm) * h;
         ctx.beginPath();
         ctx.moveTo(margin - 5, y);
         ctx.lineTo(margin, y);
         ctx.stroke();
-        ctx.fillText(cm.toString(), margin - 7, y);
+        ctx.fillText(String(cm), margin - 7, y);
       }
+
 
       if (dayHeights1.length >= 2) {
         ctx.lineWidth = 2.5;
