@@ -151,7 +151,7 @@
       border-radius: 50%;
       background: rgba(200, 230, 255, 0.95);
       box-shadow: 0 0 6px rgba(170, 210, 255, 0.9);
-      opacity: 0.9;
+      opacity: 0.5;
       pointer-events: none;
       z-index: 2;
       /* Independent X & Y hover animations around a base position */
@@ -353,17 +353,18 @@
 
       <div class="control-row">
         <label class="slider-label" for="humidity1">
-          <span class="has-tip" data-tip="Amount of water vapor in the air">Humidity</span></label>
+          <span class="has-tip" data-tip="Amount of water vapor in the air">Humidity</span>
+        </label>
         <input type="range" id="humidity1" min="0" max="100" step="1" value="50"
                oninput="humidityValue1.textContent = this.value + '%'; updateHumidityBubbles('p1')" />
         <span id="humidityValue1">50</span>
       </div>
 
       <div class="control-row">
-        <label class="slider-label" for="fanspeed1">No. of Fans</label>
-        <input type="range" id="fanspeed1" min="0" max="5" step="1" value="0"
-               oninput="fanspeedValue1.textContent = this.value; updateHumidityBubbles('p1')" />
-        <span id="fanspeedValue1">0</span>
+        <label class="slider-label" for="wind1">Wind</label>
+        <input type="range" id="wind1" min="0" max="100" step="1" value="0"
+               oninput="windValue1.textContent = windLabel(this.value); updateHumidityBubbles('p1')" />
+        <span id="windValue1">No wind</span>
       </div>
     </div>
 
@@ -387,20 +388,22 @@
 
       <div class="control-row">
         <label class="slider-label" for="humidity2">
-          <span class="has-tip" data-tip="Amount of water vapor in the air">Humidity</span></label>
+          <span class="has-tip" data-tip="Amount of water vapor in the air">Humidity</span>
+        </label>
         <input type="range" id="humidity2" min="0" max="100" step="1" value="50"
-               oninput="humidityValue2.textContent = this.value + '%'; updateHumidityBubbles('p1')" />
+               oninput="humidityValue2.textContent = this.value + '%'; updateHumidityBubbles('p2')" />
         <span id="humidityValue2">50</span>
       </div>
 
       <div class="control-row">
-        <label class="slider-label" for="fanspeed2">No. of Fans</label>
-        <input type="range" id="fanspeed2" min="0" max="5" step="1" value="0"
-               oninput="fanspeedValue2.textContent = this.value; updateHumidityBubbles('p1')" />
-        <span id="fanspeedValue2">0</span>
+        <label class="slider-label" for="wind2">Wind</label>
+        <input type="range" id="wind2" min="0" max="100" step="1" value="0"
+               oninput="windValue2.textContent = windLabel(this.value); updateHumidityBubbles('p2')" />
+        <span id="windValue2">No wind</span>
       </div>
     </div>
   </div>
+
 
   <!-- Simulation Buttons -->
   <div class="sim-controls">
@@ -552,6 +555,16 @@
 
     function cToF(c){ return c * 9/5 + 32; }
 
+    function windLabel(v){
+      v = Number(v) || 0;
+      if (v === 0) return 'No wind';
+      if (v <= 33) return 'Slightly windy';
+      if (v <= 67) return 'Moderately windy';
+      return 'Very windy';
+    }
+
+
+
     function updateTempDisplays(){
       const t1C = parseFloat(document.getElementById('temperature1').value) || 0;
       const t2C = parseFloat(document.getElementById('temperature2').value) || 0;
@@ -676,14 +689,18 @@
     // Update bubbles for pot 1, pot 2, or both (default)
     function updateHumidityBubbles(which) {
       if (!which || which === 'p1') {
-        const h1 = parseFloat(document.getElementById('humidity1').value) || 0;
-        const f1 = parseFloat(document.getElementById('fanspeed1').value) || 0;
+        // Pot 1 block:
+        const h1  = parseFloat(document.getElementById('humidity1').value) || 0;
+        const w1p = parseFloat(document.getElementById('wind1')?.value || 0);  // 0..100
+        const f1  = w1p * 0.05; // 0..5 equivalent
         renderHumidityBubblesForPot('.pot-only', h1, f1);
-      }
-      if (!which || which === 'p2') {
-        const h2 = parseFloat(document.getElementById('humidity2').value) || 0;
-        const f2 = parseFloat(document.getElementById('fanspeed2').value) || 0;
+
+        // Pot 2 block:
+        const h2  = parseFloat(document.getElementById('humidity2').value) || 0;
+        const w2p = parseFloat(document.getElementById('wind2')?.value || 0);  // 0..100
+        const f2  = w2p * 0.05; // 0..5 equivalent
         renderHumidityBubblesForPot('.pot', h2, f2);
+
       }
     }
 
@@ -870,12 +887,13 @@
       const temp1 = document.getElementById('temperature1').value;
       const humidity1 = document.getElementById('humidity1').value;
       const light1 = document.getElementById('light1').value;
-      const fanspeed1 = document.getElementById('fanspeed1').value;
+      const wind1 = document.getElementById('wind1')?.value || 0;
+
 
       const temp2 = document.getElementById('temperature2').value;
       const humidity2 = document.getElementById('humidity2').value;
       const light2 = document.getElementById('light2').value;
-      const fanspeed2 = document.getElementById('fanspeed2').value;
+      const wind2 = document.getElementById('wind2')?.value || 0;
 
       resetSimulation();
       cancelGrowth1 = false;
@@ -886,8 +904,8 @@
       updateHumidityBubbles();
 
       // Start growth for both plants
-      startGrowing(plant1, temp1, humidity1, light1, fanspeed1, 'heightDisplay1', 1);
-      startGrowing(plant2, temp2, humidity2, light2, fanspeed2, 'heightDisplay2', 2);
+      startGrowing(plant1, temp1, humidity1, light1, wind1, 'heightDisplay1', 1);
+      startGrowing(plant2, temp2, humidity2, light2, wind2, 'heightDisplay2', 2);
 
       // Begin day counter
       updateDay();
@@ -896,7 +914,7 @@
     /* =======================
        Growth Logic
     ======================= */
-    function startGrowing(plant, temp, humidity, light, fanspeed, displayId, plantNumber) {
+    function startGrowing(plant, temp, humidity, light, wind, displayId, plantNumber) {
       const baseGrowthRate = 0.05;
       let height = 1; // starting height in px
       plant.style.height = height + 'px';
@@ -939,12 +957,12 @@
           currentTemp = parseFloat(document.getElementById('temperature1').value) || 25;
           currentHum = parseFloat(document.getElementById('humidity1').value) || 50;
           currentLight = parseFloat(document.getElementById('light1').value) || 12;
-          currentFan = parseFloat(document.getElementById('fanspeed1').value) || 0;
+          currentFan = (parseFloat(document.getElementById('wind1')?.value || 0)) * 0.05; // 0..5
         } else {
           currentTemp = parseFloat(document.getElementById('temperature2').value) || 25;
           currentHum = parseFloat(document.getElementById('humidity2').value) || 50;
           currentLight = parseFloat(document.getElementById('light2').value) || 12;
-          currentFan = parseFloat(document.getElementById('fanspeed2').value) || 0;
+          currentFan = (parseFloat(document.getElementById('wind2')?.value || 0)) * 0.05; // 0..5
         }
 
         // If light is 0, update face and stop growth.
@@ -1181,6 +1199,8 @@
         animationId2 = null;
       }
 
+
+
       plant1.style.height = '20px';
       plant2.style.height = '20px';
 
@@ -1213,6 +1233,7 @@
         canvas.style.display = 'none';
         document.getElementById('graphToggleCombined').textContent = 'Show Combined Graph';
       }
+      updateHumidityBubbles();
     }
 
     /* =======================
@@ -1409,13 +1430,15 @@
 
       // Pot 1 only
       document.getElementById('humidity1')?.addEventListener('input', () => updateHumidityBubbles('p1'));
-      document.getElementById('fanspeed1')?.addEventListener('input', () => updateHumidityBubbles('p1'));
+      document.getElementById('wind1')?.addEventListener('input', () => updateHumidityBubbles('p1'));
 
       // Pot 2 only
       document.getElementById('humidity2')?.addEventListener('input', () => updateHumidityBubbles('p2'));
-      document.getElementById('fanspeed2')?.addEventListener('input', () => updateHumidityBubbles('p2'));
+      document.getElementById('wind2')?.addEventListener('input', () => updateHumidityBubbles('p2'));
       humidityValue1.textContent = document.getElementById('humidity1').value + '%';
       humidityValue2.textContent = document.getElementById('humidity2').value + '%';
+      windValue1.textContent = windLabel(document.getElementById('wind1')?.value || 0);
+      windValue2.textContent = windLabel(document.getElementById('wind2')?.value || 0);
     });
     /* =======================
        Graph Tooltip Logic
