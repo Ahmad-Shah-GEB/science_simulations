@@ -1,0 +1,454 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Help vs Rob Simulation</title>
+  <style>
+    :root { color-scheme: dark; }
+    body {
+      margin: 0;
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+      background: #0b0f14;
+      color: #e7edf3;
+      display: grid;
+      place-items: center;
+      height: 100vh;
+    }
+    .wrap {
+      width: min(980px, 96vw);
+      display: grid;
+      gap: 12px;
+    }
+    .panel {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px 14px;
+      align-items: center;
+      justify-content: space-between;
+      background: #0f1720;
+      border: 1px solid #223041;
+      border-radius: 12px;
+      padding: 10px 12px;
+    }
+    .left, .right { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+    button {
+      background: #1b2a3b;
+      color: #e7edf3;
+      border: 1px solid #2b3e55;
+      padding: 8px 10px;
+      border-radius: 10px;
+      cursor: pointer;
+    }
+    button:hover { background: #22364d; }
+    label { display: inline-flex; align-items: center; gap: 8px; cursor: pointer; }
+    .hint {
+      opacity: 0.85;
+      font-size: 13px;
+    }
+    canvas {
+      width: 100%;
+      height: auto;
+      aspect-ratio: 16 / 9;
+      background: #0a1017;
+      border: 1px solid #223041;
+      border-radius: 12px;
+      display: block;
+    }
+    .stat {
+      font-size: 13px;
+      opacity: 0.9;
+      display: inline-flex;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+    .pill {
+      border: 1px solid #2b3e55;
+      border-radius: 999px;
+      padding: 4px 10px;
+      background: #0b131c;
+      white-space: nowrap;
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="panel">
+      <div class="left">
+        <strong>Help vs Rob</strong>
+        <label title="Helpful mode: +/- 1 per collision, unless a robber is involved">
+          <input type="radio" name="mode" value="help" checked />
+          Helpful
+        </label>
+        <label title="Robbing mode: +/- 20 per collision (everyone robs)">
+          <input type="radio" name="mode" value="rob" />
+          Robbing
+        </label>
+        <button id="resetBtn">Reset (all to 100)</button>
+      </div>
+
+      <div class="right">
+        <div class="stat">
+          <span class="pill">Collisions: <span id="collisions">0</span></span>
+          <span class="pill">Robbers: <span id="robbers">0</span></span>
+          <span class="pill">Min: <span id="minV">100</span></span>
+          <span class="pill">Max: <span id="maxV">100</span></span>
+          <span class="pill">Avg: <span id="avgV">100</span></span>
+        </div>
+      </div>
+    </div>
+
+    <canvas id="c"></canvas>
+    <div class="hint">
+      In Helpful mode: click a ball to toggle “Robber”. If a collision includes a robber, the robber steals 20.
+      Cooldown prevents repeated transfers while overlapping. Values are clamped to 0–999.
+    </div>
+  </div>
+
+<script>
+(() => {
+  const canvas = document.getElementById('c');
+  const ctx = canvas.getContext('2d');
+
+  const collisionsEl = document.getElementById('collisions');
+  const robbersEl = document.getElementById('robbers');
+  const minEl = document.getElementById('minV');
+  const maxEl = document.getElementById('maxV');
+  const avgEl = document.getElementById('avgV');
+
+  const resetBtn = document.getElementById('resetBtn');
+
+  function resizeCanvas() {
+    const rect = canvas.getBoundingClientRect();
+    const dpr = Math.max(1, Math.min(2, window.devicePixelRatio || 1));
+    canvas.width = Math.floor(rect.width * dpr);
+    canvas.height = Math.floor(rect.height * dpr);
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  }
+  window.addEventListener('resize', resizeCanvas);
+
+  // Simulation params
+  const N = 10;
+  const R = 28;
+  const SPEED = 2.2;
+  const MAX_VAL = 999;
+  const MIN_VAL = 0;
+  const HELP_DELTA = 1;
+  const ROB_DELTA = 20;
+
+  const PAIR_COOLDOWN_MS = 180;
+
+  const lastPairHit = new Map(); // "i|j" -> timestamp
+  let totalCollisions = 0;
+
+  function getMode() {
+    const checked = document.querySelector('input[name="mode"]:checked');
+    return checked ? checked.value : 'help';
+  }
+
+  const balls = [];
+
+  function rand(min, max) { return Math.random() * (max - min) + min; }
+  function clamp(x, lo, hi) { return Math.max(lo, Math.min(hi, x)); }
+
+  function updateRobberCount() {
+    const c = balls.reduce((acc, b) => acc + (b.isRobber ? 1 : 0), 0);
+    robbersEl.textContent = String(c);
+  }
+
+  function initBalls() {
+    balls.length = 0;
+    lastPairHit.clear();
+    totalCollisions = 0;
+
+    const w = canvas.getBoundingClientRect().width;
+    const h = canvas.getBoundingClientRect().height;
+
+    for (let i = 0; i < N; i++) {
+      let tries = 0;
+      let x, y;
+      do {
+        x = rand(R + 4, w - R - 4);
+        y = rand(R + 4, h - R - 4);
+        tries++;
+      } while (tries < 200 && balls.some(b => {
+        const dx = b.x - x, dy = b.y - y;
+        return Math.hypot(dx, dy) < (2 * R + 6);
+      }));
+
+      const angle = rand(0, Math.PI * 2);
+      const sp = rand(SPEED * 0.7, SPEED * 1.3);
+
+      balls.push({
+        x, y,
+        vx: Math.cos(angle) * sp,
+        vy: Math.sin(angle) * sp,
+        r: R,
+        value: 100,
+        isRobber: false
+      });
+    }
+
+    updateStats();
+    updateRobberCount();
+    collisionsEl.textContent = String(totalCollisions);
+  }
+
+  resetBtn.addEventListener('click', () => {
+    balls.forEach(b => { b.value = 100; b.isRobber = false; });
+    totalCollisions = 0;
+    lastPairHit.clear();
+    updateStats();
+    updateRobberCount();
+    collisionsEl.textContent = String(totalCollisions);
+  });
+
+  // Click to toggle robber (ONLY in helpful mode)
+  canvas.addEventListener('click', (e) => {
+    if (getMode() !== 'help') return;
+
+    const rect = canvas.getBoundingClientRect();
+    const mx = e.clientX - rect.left;
+    const my = e.clientY - rect.top;
+
+    // Find topmost ball under mouse (they don't overlap much, but still)
+    for (let i = balls.length - 1; i >= 0; i--) {
+      const b = balls[i];
+      const dx = mx - b.x;
+      const dy = my - b.y;
+      if (Math.hypot(dx, dy) <= b.r) {
+        b.isRobber = !b.isRobber;
+        updateRobberCount();
+        return;
+      }
+    }
+  });
+
+  function resolveCircleCollision(a, b) {
+    const dx = b.x - a.x;
+    const dy = b.y - a.y;
+    const dist = Math.hypot(dx, dy);
+    const minDist = a.r + b.r;
+
+    if (dist === 0 || dist >= minDist) return false;
+
+    const overlap = (minDist - dist);
+    const nx = dx / dist;
+    const ny = dy / dist;
+
+    a.x -= nx * overlap * 0.5;
+    a.y -= ny * overlap * 0.5;
+    b.x += nx * overlap * 0.5;
+    b.y += ny * overlap * 0.5;
+
+    const rvx = b.vx - a.vx;
+    const rvy = b.vy - a.vy;
+    const velAlongNormal = rvx * nx + rvy * ny;
+
+    if (velAlongNormal > 0) return true;
+
+    const impulse = -2 * velAlongNormal / 2;
+    const ix = impulse * nx;
+    const iy = impulse * ny;
+
+    a.vx -= ix;
+    a.vy -= iy;
+    b.vx += ix;
+    b.vy += iy;
+
+    return true;
+  }
+
+  function pairKey(i, j) {
+    return i < j ? `${i}|${j}` : `${j}|${i}`;
+  }
+
+  function transfer(giverIdx, takerIdx, delta) {
+    const giver = balls[giverIdx];
+    const taker = balls[takerIdx];
+
+    const giverCanGive = giver.value - MIN_VAL;
+    const takerCanTake = MAX_VAL - taker.value;
+    const amt = clamp(delta, 0, Math.min(giverCanGive, takerCanTake));
+    if (amt <= 0) return false;
+
+    giver.value -= amt;
+    taker.value += amt;
+    return true;
+  }
+
+  function applyValueTransfer(i, j) {
+    const mode = getMode();
+
+    if (mode === 'rob') {
+      // Everyone robs. Random taker/giver.
+      const taker = (Math.random() < 0.5) ? i : j;
+      const giver = (taker === i) ? j : i;
+
+      if (transfer(giver, taker, ROB_DELTA)) {
+        totalCollisions++;
+        collisionsEl.textContent = String(totalCollisions);
+      }
+      return;
+    }
+
+    // Helpful mode:
+    // - If a robber is involved, robber steals 20
+    // - Else do +/-1 randomly
+    const bi = balls[i], bj = balls[j];
+    const iRob = bi.isRobber;
+    const jRob = bj.isRobber;
+
+    if (iRob || jRob) {
+      // Decide robber taker:
+      // If only one is robber, that one is taker. If both are robbers, choose randomly.
+      const taker = (iRob && jRob) ? ((Math.random() < 0.5) ? i : j)
+                  : (iRob ? i : j);
+      const giver = (taker === i) ? j : i;
+
+      if (transfer(giver, taker, ROB_DELTA)) {
+        totalCollisions++;
+        collisionsEl.textContent = String(totalCollisions);
+      }
+      return;
+    }
+
+    // Pure helpful interaction
+    const giver = (Math.random() < 0.5) ? i : j;
+    const taker = (giver === i) ? j : i;
+
+    if (transfer(giver, taker, HELP_DELTA)) {
+      totalCollisions++;
+      collisionsEl.textContent = String(totalCollisions);
+    }
+  }
+
+  function updateStats() {
+    let min = Infinity, max = -Infinity, sum = 0;
+    for (const b of balls) {
+      min = Math.min(min, b.value);
+      max = Math.max(max, b.value);
+      sum += b.value;
+    }
+    minEl.textContent = String(min);
+    maxEl.textContent = String(max);
+    avgEl.textContent = (sum / balls.length).toFixed(1);
+  }
+
+  function step() {
+    const w = canvas.getBoundingClientRect().width;
+    const h = canvas.getBoundingClientRect().height;
+
+    for (const b of balls) {
+      b.x += b.vx;
+      b.y += b.vy;
+
+      if (b.x - b.r < 0) { b.x = b.r; b.vx *= -1; }
+      if (b.x + b.r > w) { b.x = w - b.r; b.vx *= -1; }
+      if (b.y - b.r < 0) { b.y = b.r; b.vy *= -1; }
+      if (b.y + b.r > h) { b.y = h - b.r; b.vy *= -1; }
+    }
+
+    const now = performance.now();
+    for (let i = 0; i < balls.length; i++) {
+      for (let j = i + 1; j < balls.length; j++) {
+        const a = balls[i], b = balls[j];
+        const dx = b.x - a.x;
+        const dy = b.y - a.y;
+        const dist = Math.hypot(dx, dy);
+        const touching = dist < (a.r + b.r);
+
+        if (touching) {
+          resolveCircleCollision(a, b);
+
+          const key = pairKey(i, j);
+          const last = lastPairHit.get(key) ?? -Infinity;
+          if (now - last >= PAIR_COOLDOWN_MS) {
+            applyValueTransfer(i, j);
+            lastPairHit.set(key, now);
+          }
+        }
+      }
+    }
+
+    updateStats();
+  }
+
+  function draw() {
+    const w = canvas.getBoundingClientRect().width;
+    const h = canvas.getBoundingClientRect().height;
+
+    ctx.clearRect(0, 0, w, h);
+
+    // border
+    ctx.save();
+    ctx.globalAlpha = 0.35;
+    ctx.strokeStyle = "#3a5572";
+    ctx.lineWidth = 2;
+    ctx.strokeRect(1, 1, w - 2, h - 2);
+    ctx.restore();
+
+    for (const b of balls) {
+      // Base color by value
+      const t = (b.value - MIN_VAL) / (MAX_VAL - MIN_VAL);
+
+      // If robber, force a more "danger" look
+      let fill;
+      if (b.isRobber) {
+        // red-ish
+        const rr = Math.floor(180 + 60 * (1 - t));
+        const gg = Math.floor(70 + 40 * t);
+        fill = `rgb(${rr},${gg},90)`;
+      } else {
+        const r = Math.floor(120 + (200 - 120) * (1 - t));
+        const g = Math.floor(120 + (220 - 120) * t);
+        fill = `rgb(${r},${g},170)`;
+      }
+
+      // ball
+      ctx.beginPath();
+      ctx.arc(b.x, b.y, b.r, 0, Math.PI * 2);
+      ctx.fillStyle = fill;
+      ctx.globalAlpha = 0.92;
+      ctx.fill();
+      ctx.globalAlpha = 1;
+
+      // outline
+      ctx.lineWidth = b.isRobber ? 3 : 2;
+      ctx.strokeStyle = b.isRobber ? "rgba(255,255,255,0.45)" : "rgba(255,255,255,0.25)";
+      ctx.stroke();
+
+      // value text
+      ctx.font = "bold 16px system-ui, -apple-system, Segoe UI, Roboto, Arial";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillStyle = "rgba(10,16,23,0.9)";
+      ctx.fillText(String(b.value), b.x + 1, b.y + 1);
+      ctx.fillStyle = "rgba(255,255,255,0.95)";
+      ctx.fillText(String(b.value), b.x, b.y);
+
+      // robber label (tiny)
+      if (b.isRobber) {
+        ctx.font = "700 11px system-ui, -apple-system, Segoe UI, Roboto, Arial";
+        ctx.fillStyle = "rgba(0,0,0,0.65)";
+        ctx.fillText("ROBBER", b.x + 1, b.y + 18);
+        ctx.fillStyle = "rgba(255,255,255,0.9)";
+        ctx.fillText("ROBBER", b.x, b.y + 17);
+      }
+    }
+  }
+
+  function loop() {
+    step();
+    draw();
+    requestAnimationFrame(loop);
+  }
+
+  // Boot
+  resizeCanvas();
+  initBalls();
+  loop();
+})();
+</script>
+</body>
+</html>
