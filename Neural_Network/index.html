@@ -471,6 +471,26 @@
     svg.appendChild(defs);
   }
 
+  function resetHiddenValuesOnly(){
+    FEATURES.forEach(f=>{
+      values[f.key] = 0;
+  
+      // update the displayed 0 in the feature box
+      const vEl = document.getElementById("val-"+f.key);
+      if (vEl) vEl.textContent = "0";
+  
+      // if you added Yes/No buttons, clear their highlight too
+      const featBox = document.getElementById("feat-"+f.key);
+      if (featBox) {
+        featBox.classList.remove("on"); // harmless if unused
+        featBox.querySelectorAll("button.yn").forEach(b => b.classList.remove("onBtn"));
+      }
+    });
+  
+    update(); // redraw arrows etc.
+  }
+
+  
   function strokeWidthFromWeight(w){
     // w in [-5, 5] → width in [1, 10]
     return 1 + ((w + 5) / 10) * 9;
@@ -548,6 +568,7 @@
     img.onload = ()=>{
       img.style.display="block";
       placeholder.style.display="none";
+      resetHiddenValuesOnly();
     };
     img.onerror = ()=>{
       img.style.display="none";
